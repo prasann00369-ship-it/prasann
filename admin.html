@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="hi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>PRASANN Admin</title>
+<style>
+:root{--g:#1f4d2b;--o:#f28c28;--c:#fbf6ea;--r:#b3261e}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:var(--c);color:#222}
+header{background:var(--g);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+header b{font-size:18px}main{max-width:760px;margin:auto;padding:14px}
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px #0002}
+h2{margin:0 0 10px;color:var(--g);font-size:17px}
+label{display:block;font-size:13px;margin:8px 0 3px;color:#555}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:15px}
+button{background:var(--o);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-size:15px;margin-top:10px;cursor:pointer}
+button.s{background:var(--g)}button.d{background:var(--r)}button.l{background:transparent;border:1px solid #fff;margin:0}
+.tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{margin:0;flex:1;background:#ddd;color:#222}.tabs button.on{background:var(--g);color:#fff}
+.row{display:flex;gap:10px;align-items:center;border-top:1px solid #eee;padding:10px 0}
+.row img,.ph{width:56px;height:56px;border-radius:8px;object-fit:cover;background:#eee;font-size:9px;display:flex;align-items:center;justify-content:center;text-align:center;flex:none}
+.row div.i{flex:1;min-width:0;font-size:14px}.row small{color:#666;display:block}
+.row button{margin:0;padding:7px 10px;font-size:13px}
+#msg{position:fixed;bottom:12px;left:12px;right:12px;padding:12px;border-radius:8px;color:#fff;display:none;text-align:center}
+.hide{display:none}.pp{font-size:13px;color:var(--g);margin-top:6px}
+</style></head><body>
+<header><b>PRASANN Admin</b><button class="l hide" id="out" onclick="logout()">Logout</button></header>
+<main>
+<div id="login" class="card"><h2>Admin Login</h2>
+<label>Email</label><input id="em" type="email" autocomplete="username">
+<label>Password</label><input id="pw" type="password" autocomplete="current-password">
+<button onclick="login()">Login</button></div>
+
+<div id="app" class="hide">
+<div class="tabs"><button id="t1" class="on" onclick="tab(1)">Products</button><button id="t2" onclick="tab(2)">Stories (24h)</button></div>
+
+<div id="p1">
+<div class="card"><h2 id="ptitle">नया Product</h2>
+<label>Name (English)</label><input id="pn">
+<label>नाम (हिंदी)</label><input id="ph">
+<label>Category</label><select id="pc"><option>Snacks</option><option>Indian Meals</option><option>South Indian Meals</option><option>Fast Food</option><option>Sweets</option></select>
+<label>Price per kg (₹) — खाली छोड़ें अगर अभी तय नहीं</label><input id="pp" type="number" min="0" step="0.01" oninput="prev()">
+<div class="pp" id="pv"></div>
+<label>Status</label><select id="ps"><option value="available">Available</option><option value="coming_soon">Coming Soon</option></select>
+<label>Product Photo (optional)</label><input id="pf" type="file" accept="image/*">
+<button class="s" onclick="saveP()">Save</button> <button onclick="resetP()" style="background:#999">Clear</button></div>
+<div class="card"><h2>सभी Products</h2><div id="plist"></div></div></div>
+
+<div id="p2" class="hide">
+<div class="card"><h2>नई Story (24 घंटे बाद अपने आप हट जाएगी)</h2>
+<label>Photo</label><input id="sf" type="file" accept="image/*">
+<label>Caption</label><input id="sc">
+<button class="s" onclick="saveS()">Publish Story</button></div>
+<div class="card"><h2>Live Stories</h2><div id="slist"></div></div></div>
+</div></main><div id="msg"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script>
+const C=window.PRASANN_CONFIG;let sb,editId=null,editImg=null,prods=[];
+const $=i=>document.getElementById(i);
+function msg(t,bad){const m=$('msg');m.textContent=t;m.style.background=bad?'#b3261e':'#1f4d2b';m.style.display='block';setTimeout(()=>m.style.display='none',3500)}
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function tab(n){$('p1').classList.toggle('hide',n!=1);$('p2').classList.toggle('hide',n!=2);$('t1').className=n==1?'on':'';$('t2').className=n==2?'on':''}
+function prev(){const p=parseFloat($('pp').value);$('pv').textContent=isNaN(p)?'':[150,300,500,1000].map(g=>(g>=1000?'1 kg':g+' g')+': ₹'+(p*g/1000).toFixed(2)).join('  |  ')}
+async function init(){
+ if(!C||C.SUPABASE_URL.startsWith('YOUR')){msg('config.js में Supabase URL/key डालें',1);return}
+ sb=supabase.createClient(C.SUPABASE_URL,C.SUPABASE_ANON_KEY);
+ const{data:{session}}=await sb.auth.getSession();if(session)await enter()}
+async function login(){
+ if(!sb)return msg('पहले config.js भरें',1);
+ const{error}=await sb.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});
+ if(error)return msg('Login फेल: '+error.message,1);await enter()}
+async function enter(){
+ const{data}=await sb.from('admins').select('user_id').maybeSingle();
+ if(!data){await sb.auth.signOut();return msg('यह account admin नहीं है',1)}
+ $('login').classList.add('hide');$('app').classList.remove('hide');$('out').classList.remove('hide');
+ loadP();loadS()}
+async function logout(){await sb.auth.signOut();location.reload()}
+async function up(file){
+ const n=Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+ const{error}=await sb.storage.from('media').upload(n,file);if(error)throw error;
+ return sb.storage.from('media').getPublicUrl(n).data.publicUrl}
+async function loadP(){
+ const{data,error}=await sb.from('products').select('*').order('created_at');
+ if(error)return msg(error.message,1);prods=data;
+ $('plist').innerHTML=data.map(p=>`<div class="row">${p.image_url?`<img src="${esc(p.image_url)}">`:'<div class="ph">Photo coming soon</div>'}
+ <div class="i"><b>${esc(p.name)}</b><small>${esc(p.category)} • ${p.status=='available'?'Available':'Coming Soon'} • ${p.price_per_kg==null?'Price: —':'₹'+p.price_per_kg+'/kg'}</small></div>
+ <button class="s" onclick="editP('${p.id}')">Edit</button><button class="d" onclick="delP('${p.id}')">Delete</button></div>`).join('')||'कोई product नहीं'}
+function resetP(){editId=editImg=null;['pn','ph','pp','pf'].forEach(i=>$(i).value='');$('pc').value='Snacks';$('ps').value='available';$('ptitle').textContent='नया Product';prev()}
+function editP(id){const p=prods.find(x=>x.id==id);editId=id;editImg=p.image_url;$('pn').value=p.name;$('ph').value=p.name_hi||'';$('pc').value=p.category;$('pp').value=p.price_per_kg??'';$('ps').value=p.status;$('ptitle').textContent='Edit: '+p.name;prev();scrollTo(0,0)}
+async function saveP(){
+ try{const name=$('pn').value.trim();if(!name)return msg('Name जरूरी है',1);
+ let img=editImg;const f=$('pf').files[0];if(f)img=await up(f);
+ const pr=$('pp').value===''?null:parseFloat($('pp').value);
+ const row={name,name_hi:$('ph').value.trim()||null,category:$('pc').value,price_per_kg:pr,status:$('ps').value,image_url:img};
+ const{error}=editId?await sb.from('products').update(row).eq('id',editId):await sb.from('products').insert(row);
+ if(error)throw error;msg('Save हो गया ✅');resetP();loadP()}catch(e){msg(e.message,1)}}
+async function delP(id){if(!confirm('Delete करें?'))return;const{error}=await sb.from('products').delete().eq('id',id);error?msg(error.message,1):(msg('Delete हो गया'),loadP())}
+async function loadS(){
+ const{data,error}=await sb.from('stories').select('*').gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false});
+ if(error)return msg(error.message,1);
+ $('slist').innerHTML=data.map(s=>`<div class="row"><img src="${esc(s.image_url)}"><div class="i">${esc(s.caption)}<small>खत्म: ${new Date(s.expires_at).toLocaleString()}</small></div><button class="d" onclick="delS('${s.id}')">Delete</button></div>`).join('')||'कोई live story नहीं'}
+async function saveS(){
+ try{const f=$('sf').files[0];if(!f)return msg('Photo चुनें',1);
+ const url=await up(f);const{error}=await sb.from('stories').insert({image_url:url,caption:$('sc').value.trim()||null,expires_at:new Date(Date.now()+864e5).toISOString()});
+ if(error)throw error;$('sf').value=$('sc').value='';msg('Story publish ✅');loadS()}catch(e){msg(e.message,1)}}
+async function delS(id){const{error}=await sb.from('stories').delete().eq('id',id);error?msg(error.message,1):loadS()}
+init()
+</script></body></html>

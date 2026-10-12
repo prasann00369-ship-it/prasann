@@ -1,2 +1,5 @@
-// Public settings only. NEVER put service-role keys or passwords here.
-window.PRASANN_CONFIG = { SUPABASE_URL: "", SUPABASE_ANON_KEY: "", WHATSAPP: "918448047203" };
+// यहाँ अपना Supabase URL और anon key डालें (Supabase > Project Settings > API)
+window.PRASANN_CONFIG = {
+  SUPABASE_URL: "YOUR_SUPABASE_URL",
+  SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY"
+};
