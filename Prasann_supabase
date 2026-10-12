@@ -1,0 +1,155 @@
+-- =====================================================
+-- PRASANN - Supabase setup (Tables + RLS + Storage)
+-- Supabase Dashboard > SQL Editor > New query > paste > Run
+-- Safe to run more than once.
+-- =====================================================
+
+-- 1) ADMINS ------------------------------------------------
+create table if not exists public.admins (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (select 1 from public.admins where user_id = auth.uid());
+$$;
+
+-- 2) CATEGORIES --------------------------------------------
+create table if not exists public.categories (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  name_en text not null,
+  name_hi text not null,
+  sort_order int not null default 0,
+  is_active boolean not null default true
+);
+
+-- 3) PRODUCTS ----------------------------------------------
+-- Pack price (frontend) = price_per_kg * grams / 1000
+create table if not exists public.products (
+  id uuid primary key default gen_random_uuid(),
+  category_id uuid not null references public.categories(id) on delete restrict,
+  name_en text not null,
+  name_hi text,
+  description_en text,
+  description_hi text,
+  image_url text,                         -- blank = "Product photo coming soon"
+  price_per_kg numeric(10,2) check (price_per_kg is null or price_per_kg >= 0),
+  is_coming_soon boolean not null default false,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+-- 4) STORIES (expire 24 hours after publishing) -------------
+create table if not exists public.stories (
+  id uuid primary key default gen_random_uuid(),
+  title_en text,
+  title_hi text,
+  image_url text,
+  video_url text,
+  published_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now() + interval '24 hours'),
+  is_active boolean not null default true
+);
+
+-- 5) SITE SETTINGS -----------------------------------------
+create table if not exists public.site_settings (
+  key text primary key,
+  value text
+);
+
+-- 6) ROW LEVEL SECURITY ------------------------------------
+alter table public.admins        enable row level security;
+alter table public.categories    enable row level security;
+alter table public.products      enable row level security;
+alter table public.stories       enable row level security;
+alter table public.site_settings enable row level security;
+
+-- admins: only an admin can see the list; nobody can edit from the website
+drop policy if exists "admins read" on public.admins;
+create policy "admins read" on public.admins
+  for select to authenticated using (public.is_admin());
+
+-- categories
+drop policy if exists "categories public read" on public.categories;
+create policy "categories public read" on public.categories
+  for select to anon, authenticated using (is_active or public.is_admin());
+drop policy if exists "categories admin write" on public.categories;
+create policy "categories admin write" on public.categories
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- products
+drop policy if exists "products public read" on public.products;
+create policy "products public read" on public.products
+  for select to anon, authenticated using (is_active or public.is_admin());
+drop policy if exists "products admin write" on public.products;
+create policy "products admin write" on public.products
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- stories: public sees only active + not expired
+drop policy if exists "stories public read" on public.stories;
+create policy "stories public read" on public.stories
+  for select to anon, authenticated
+  using ((is_active and expires_at > now()) or public.is_admin());
+drop policy if exists "stories admin write" on public.stories;
+create policy "stories admin write" on public.stories
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- site settings
+drop policy if exists "settings public read" on public.site_settings;
+create policy "settings public read" on public.site_settings
+  for select to anon, authenticated using (true);
+drop policy if exists "settings admin write" on public.site_settings;
+create policy "settings admin write" on public.site_settings
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- 7) STORAGE BUCKETS (public read, admin-only upload) -------
+insert into storage.buckets (id, name, public)
+values ('product-images', 'product-images', true),
+       ('story-media',    'story-media',    true),
+       ('brand',          'brand',          true)
+on conflict (id) do nothing;
+
+drop policy if exists "prasann media public read" on storage.objects;
+create policy "prasann media public read" on storage.objects
+  for select to anon, authenticated
+  using (bucket_id in ('product-images','story-media','brand'));
+
+drop policy if exists "prasann media admin write" on storage.objects;
+create policy "prasann media admin write" on storage.objects
+  for all to authenticated
+  using (bucket_id in ('product-images','story-media','brand') and public.is_admin())
+  with check (bucket_id in ('product-images','story-media','brand') and public.is_admin());
+
+-- 8) STARTING DATA -----------------------------------------
+insert into public.categories (slug, name_en, name_hi, sort_order) values
+  ('snacks',        'Snacks',               'स्नैक्स',          1),
+  ('indian-meals',  'Indian Meals',         'इंडियन मील्स',     2),
+  ('south-indian',  'South Indian Meals',   'साउथ इंडियन मील्स', 3),
+  ('fast-food',     'Fast Food',            'फास्ट फूड',        4),
+  ('sweets',        'Sweets',               'मिठाइयाँ',          5)
+on conflict (slug) do nothing;
+
+insert into public.products (category_id, name_en, name_hi, is_coming_soon, price_per_kg)
+select c.id, 'PRASANN Kaju Shape Snacks', 'प्रसन्न काजू शेप स्नैक्स', false, null
+from public.categories c
+where c.slug = 'snacks'
+  and not exists (select 1 from public.products p where p.name_en = 'PRASANN Kaju Shape Snacks');
+
+insert into public.site_settings (key, value) values
+  ('whatsapp_number', '918448047203')
+on conflict (key) do nothing;
+
+-- =====================================================
+-- ADMIN BANANE KE LIYE (alag se, SQL Editor me chalayein):
+-- Pehle Authentication > Users me apna email+password wala user banayein, phir:
+--
+--   insert into public.admins (user_id)
+--   select id from auth.users where email = 'YAHAN-APNA-EMAIL';
+-- =====================================================
