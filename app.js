@@ -44,7 +44,7 @@ document.querySelectorAll('[data-modal]').forEach(a=>a.onclick=e=>{e.preventDefa
 $('#mclose').onclick=()=>$('#modal').hidden=true;
 $('#demo').hidden=configured;
 $('#regForm').onsubmit=async e=>{e.preventDefault();const f=e.target,v={name:f.name.value,mobile:f.mobile.value,email:f.email.value,addr:f.addr.value,consent:f.consent.checked};const err=validate(v);document.querySelectorAll('.err').forEach(x=>x.textContent='');Object.keys(err).forEach(k=>$('#e-'+k).textContent=t(err[k]));if(Object.keys(err).length)return;
-if(configured){try{const r=await fetch(CFG.SUPABASE_URL+'/functions/v1/register',{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.SUPABASE_ANON_KEY},body:JSON.stringify({...v,lang})});if(!r.ok)throw 0}catch(x){$('#e-consent').textContent='Registration failed. Please try again.';return}}
+if(configured){try{const r=await fetch(CFG.SUPABASE_URL+'/functions/v1/hyper-responder',{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.SUPABASE_ANON_KEY},body:JSON.stringify({...v,lang})});if(!r.ok)throw 0}catch(x){$('#e-consent').textContent='Registration failed. Please try again.';return}}
 user={name:v.name.trim(),mobile:v.mobile.trim(),email:v.email.trim(),addr:v.addr.trim()};$('#reg').hidden=true;$('#welcome').hidden=false};
 $('#enter').onclick=()=>{$('#welcome').hidden=true;$('#site').hidden=false;render()};
 applyLang()})();
