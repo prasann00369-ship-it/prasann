@@ -1,5 +1,4 @@
-// यहाँ अपना Supabase URL और anon key डालें (Supabase > Project Settings > API)
 window.PRASANN_CONFIG = {
-  SUPABASE_URL: "YOUR_SUPABASE_URL",
-  SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY"
+  SUPABASE_URL: "यहाँ_अपना_बेस_Project_URL_भरें",
+  SUPABASE_ANON_KEY: "यहाँ_अपनी_Publishable_Key_भरें"
 };
