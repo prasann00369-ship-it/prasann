@@ -20,7 +20,49 @@ section{max-width:1000px;margin:auto;padding:1.5rem 1rem}h2{color:var(--g)}.grid
 #cartPanel{position:fixed;right:0;top:0;bottom:0;width:min(400px,100%);background:#fff;padding:1rem;overflow:auto;transform:translateX(100%);transition:.3s;z-index:20;box-shadow:-6px 0 20px #0004}#cartPanel.open{transform:none}
 .line{display:flex;justify-content:space-between;gap:.5rem;border-bottom:1px solid #eee;padding:.6rem 0}.sm{border:1px solid #999;background:#fff;border-radius:8px;min-width:40px;min-height:40px;margin:2px;cursor:pointer}
 footer{background:var(--g);color:#fff;text-align:center;padding:1.5rem}footer a{color:#ffd9bd;margin:0 .6rem}
-#modal{position:fixed;inset:0;background:#000a;display:grid;place-items:center;z-index:30;padding:1rem}#modal[hidden]{display:none}[hidden]{display:none!important}</style></head><body>
+#modal{position:fixed;inset:0;background:#000a;display:grid;place-items:center;z-index:30;padding:1rem}#modal[hidden]{display:none}[hidden]{display:none!important}
+<!-- Bottom navigation -->
+<nav class="bottom-nav" aria-label="Main navigation">
+  <button type="button" data-nav="home">🏠 <span>Home</span></button>
+  <button type="button" data-nav="shop">🛍️ <span>Shop</span></button>
+  <button type="button" data-nav="cart">🛒 <span>Cart</span></button>
+  <button type="button" data-nav="wishlist">♡ <span>Wishlist</span></button>
+  <button type="button" data-nav="account">👤 <span>Account</span></button>
+</nav>
+
+<!-- Wishlist panel -->
+<aside id="wishlistPanel" class="side-panel" hidden>
+  <button type="button" class="panel-close" data-close="wishlistPanel">✕</button>
+  <h2>My Wishlist</h2>
+  <div id="wishlistItems">Your wishlist is empty.</div>
+</aside>
+
+<!-- Account panel -->
+<aside id="accountPanel" class="side-panel" hidden>
+  <button type="button" class="panel-close" data-close="accountPanel">✕</button>
+  <h2>My Account</h2>
+  <div id="accountView"></div>
+
+  <form id="accountForm" hidden>
+    <label>Full name
+      <input id="editName" name="editName" required minlength="2">
+    </label>
+    <label>Mobile number
+      <input id="editMobile" name="editMobile" type="tel"
+        required inputmode="numeric">
+    </label>
+    <label>Email address
+      <input id="editEmail" name="editEmail" type="email">
+    </label>
+    <label>Delivery address
+      <textarea id="editAddr" name="editAddr" required minlength="10"></textarea>
+    </label>
+    <button class="btn" type="submit">Save Changes</button>
+    <button class="btn" type="button" id="cancelEdit">Cancel</button>
+    <p id="accountError" role="alert"></p>
+  </form>
+</aside>
+</style></head><body>
 <div id="reg" class="screen"><form id="regForm" class="box" novalidate><img class="lg" src="logo.png" alt="PRASANN logo"><h1 data-i="reg_t" style="margin:0;color:var(--g)"></h1><p data-i="reg_s"></p>
 <div id="demo" class="demo" data-i="demo"></div>
 <label><span data-i="name"></span><input name="name" autocomplete="name"><span class="err" id="e-name"></span></label>
