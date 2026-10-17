@@ -112,11 +112,65 @@ async function loadP(){
  <button class="s" onclick="editP('${p.id}')">Edit</button><button class="d" onclick="delP('${p.id}')">Delete</button></div>`).join('')||'कोई product नहीं'}
 function resetP(){editId=editImg=null;['pn','ph','pp','pf'].forEach(i=>$(i).value='');$('pc').value='Snacks';$('ps').value='available';$('ptitle').textContent='नया Product';prev()}
 function editP(id){const p=prods.find(x=>x.id==id);editId=id;editImg=p.image_url;$('pn').value=p.name;$('ph').value=p.name_hi||'';$('pc').value=p.category;$('pp').value=p.price_per_kg??'';$('ps').value=p.status;$('ptitle').textContent='Edit: '+p.name;prev();scrollTo(0,0)}
+async function saveP(){
+  try {
+    const name = $('pn').value.trim();
+    if (!name) return msg('Name जरूरी है', 1);
 
- 
- const{error}=editId?await sb.from('products').update(row).eq('id',editId):await sb.from('products').insert(row);
- if(error)throw error;msg('Save हो गया ✅');resetP();loadP()}catch(e){msg(e.message,1)}}
-async function delP(id){if(!confirm('Delete करें?'))return;const{error}=await sb.from('products').delete().eq('id',id);error?msg(error.message,1):(msg('Delete हो गया'),loadP())}
+    const packs = [];
+    for (let i = 1; i <= 3; i++) {
+      const grams = $('g' + i).value;
+      const price = $('v' + i).value;
+
+      if (grams !== '' && price !== '') {
+        if (Number(grams) <= 0 || Number(price) < 0) {
+          return msg('वजन और कीमत सही भरें', 1);
+        }
+        packs.push({
+          grams: Number(grams),
+          price: Number(price)
+        });
+      } else if (grams !== '' || price !== '') {
+        return msg('हर पैक का वजन और कीमत दोनों भरें', 1);
+      }
+    }
+
+    let img = editImg;
+    const f = $('pf').files[0];
+    if (f) img = await up(f);
+
+    const video = $('pvideo').value.trim();
+    if (video) {
+      try { new URL(video); }
+      catch (_) { return msg('Video URL सही नहीं है', 1); }
+    }
+
+    const row = {
+      name,
+      name_hi: $('ph').value.trim() || null,
+      category: $('pc').value,
+      description: $('pd').value.trim() || null,
+      video_url: video || null,
+      pack_options: packs,
+      price_per_kg: $('pp').value === '' ? null : Number($('pp').value),
+      status: $('ps').value,
+      image_url: img
+    };
+
+    const { error } = editId
+      ? await sb.from('products').update(row).eq('id', editId)
+      : await sb.from('products').insert(row);
+
+    if (error) throw error;
+    msg('Save हो गया ✅');
+    resetP();
+    await loadP();
+  } catch (e) {
+    msg(e.message, 1);
+  }
+ }
+
+ async function delP(id){if(!confirm('Delete करें?'))return;const{error}=await sb.from('products').delete().eq('id',id);error?msg(error.message,1):(msg('Delete हो गया'),loadP())}
 async function loadS(){
  const{data,error}=await sb.from('stories').select('*').gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false});
  if(error)return msg(error.message,1);
