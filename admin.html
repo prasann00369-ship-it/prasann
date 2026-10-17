@@ -180,5 +180,6 @@ async function saveS(){
  const url=await up(f);const{error}=await sb.from('stories').insert({image_url:url,caption:$('sc').value.trim()||null,expires_at:new Date(Date.now()+864e5).toISOString()});
  if(error)throw error;$('sf').value=$('sc').value='';msg('Story publish ✅');loadS()}catch(e){msg(e.message,1)}}
 async function delS(id){const{error}=await sb.from('stories').delete().eq('id',id);error?msg(error.message,1):loadS()}
-init()
+
+ init()
 </script></body></html>
