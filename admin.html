@@ -36,9 +36,31 @@ button.s{background:var(--g)}button.d{background:var(--r)}button.l{background:tr
 <div class="card"><h2 id="ptitle">नया Product</h2>
 <label>Name (English)</label><input id="pn">
 <label>नाम (हिंदी)</label><input id="ph">
+<label>Product Description / प्रोडक्ट का विवरण</label>
+<textarea id="pd" rows="3" placeholder="प्रोडक्ट की जानकारी लिखें"></textarea>
+
+<label>Product Video URL (Optional)</label>
+<input id="pvideo" type="url" placeholder="वीडियो का लिंक">
+ 
 <label>Category</label><select id="pc"><option>Snacks</option><option>Indian Meals</option><option>South Indian Meals</option><option>Fast Food</option><option>Sweets</option></select>
 <label>Price per kg (₹) — खाली छोड़ें अगर अभी तय नहीं</label><input id="pp" type="number" min="0" step="0.01" oninput="prev()">
-<div class="pp" id="pv"></div>
+<h3>Pack Options / पैक और कीमत</h3>
+
+<label>Pack 1 — वजन (ग्राम)</label>
+<input id="g1" type="number" min="1" placeholder="जैसे 100">
+<label>Pack 1 — कीमत (₹)</label>
+<input id="v1" type="number" min="0" step="0.01" placeholder="जैसे 99">
+
+<label>Pack 2 — वजन (ग्राम)</label>
+<input id="g2" type="number" min="1" placeholder="जैसे 250">
+<label>Pack 2 — कीमत (₹)</label>
+<input id="v2" type="number" min="0" step="0.01" placeholder="जैसे 199">
+
+<label>Pack 3 — वजन (ग्राम)</label>
+<input id="g3" type="number" min="1" placeholder="जैसे 500">
+<label>Pack 3 — कीमत (₹)</label>
+<input id="v3" type="number" min="0" step="0.01" placeholder="जैसे 349">
+ <div class="pp" id="pv"></div>
 <label>Status</label><select id="ps"><option value="available">Available</option><option value="coming_soon">Coming Soon</option></select>
 <label>Product Photo (optional)</label><input id="pf" type="file" accept="image/*">
 <button class="s" onclick="saveP()">Save</button> <button onclick="resetP()" style="background:#999">Clear</button></div>
@@ -48,6 +70,7 @@ button.s{background:var(--g)}button.d{background:var(--r)}button.l{background:tr
 <div class="card"><h2>नई Story (24 घंटे बाद अपने आप हट जाएगी)</h2>
 <label>Photo</label><input id="sf" type="file" accept="image/*">
 <label>Caption</label><input id="sc">
+
 <button class="s" onclick="saveS()">Publish Story</button></div>
 <div class="card"><h2>Live Stories</h2><div id="slist"></div></div></div>
 </div></main><div id="msg"></div>
@@ -89,11 +112,8 @@ async function loadP(){
  <button class="s" onclick="editP('${p.id}')">Edit</button><button class="d" onclick="delP('${p.id}')">Delete</button></div>`).join('')||'कोई product नहीं'}
 function resetP(){editId=editImg=null;['pn','ph','pp','pf'].forEach(i=>$(i).value='');$('pc').value='Snacks';$('ps').value='available';$('ptitle').textContent='नया Product';prev()}
 function editP(id){const p=prods.find(x=>x.id==id);editId=id;editImg=p.image_url;$('pn').value=p.name;$('ph').value=p.name_hi||'';$('pc').value=p.category;$('pp').value=p.price_per_kg??'';$('ps').value=p.status;$('ptitle').textContent='Edit: '+p.name;prev();scrollTo(0,0)}
-async function saveP(){
- try{const name=$('pn').value.trim();if(!name)return msg('Name जरूरी है',1);
- let img=editImg;const f=$('pf').files[0];if(f)img=await up(f);
- const pr=$('pp').value===''?null:parseFloat($('pp').value);
- const row={name,name_hi:$('ph').value.trim()||null,category:$('pc').value,price_per_kg:pr,status:$('ps').value,image_url:img};
+
+ 
  const{error}=editId?await sb.from('products').update(row).eq('id',editId):await sb.from('products').insert(row);
  if(error)throw error;msg('Save हो गया ✅');resetP();loadP()}catch(e){msg(e.message,1)}}
 async function delP(id){if(!confirm('Delete करें?'))return;const{error}=await sb.from('products').delete().eq('id',id);error?msg(error.message,1):(msg('Delete हो गया'),loadP())}
