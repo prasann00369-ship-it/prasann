@@ -77,8 +77,10 @@ async function enter(){
 async function logout(){await sb.auth.signOut();location.reload()}
 async function up(file){
  const n=Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
- const{error}=await sb.storage.from('media').upload(n,file);if(error)throw error;
- return sb.storage.from('media').getPublicUrl(n).data.publicUrl}
+ const{error}=await sb.storage.from('product-images').upload(n,file);
+ if(error)throw error;
+ return sb.storage.from('product-images').getPublicUrl(n).data.publicUrl
+  }
 async function loadP(){
  const{data,error}=await sb.from('products').select('*').order('created_at');
  if(error)return msg(error.message,1);prods=data;
