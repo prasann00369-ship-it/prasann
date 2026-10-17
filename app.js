@@ -1,11 +1,10 @@
+
 const CFG = window.PRASANN_CONFIG || {};
-const PACKS = [150, 300, 500, 1000];
+const DEFAULT_PACKS = [150, 300, 500, 1000];
 const CATS = ['snacks', 'indian', 'south', 'fast', 'sweets'];
 
-// कीमत owner द्वारा तय होने तक null ही रहेगी।
-const PRODUCTS = [
-  { id: 'kaju', cat: 'snacks', pricePerKg: null, available: true }
-];
+let PRODUCTS = [];
+let STORIES = [];
 
 const T = {
   en: {
@@ -44,10 +43,12 @@ const T = {
     saved:'Profile saved in this browser.',
     localProfileNote:'Profile changes are stored in this browser only. Secure login and cross-device sync need a backend.',
     added:'Added to cart',priceWait:'Price not confirmed',
-    remove:'Remove',quantity:'Quantity',checkoutBlocked:'A confirmed price is required before checkout.',
+    quantity:'Quantity',checkoutBlocked:'A confirmed price is required before checkout.',
     accountMissing:'Please register to view your account.',
     profileError:'Please check your name, mobile, email and address.',
-    registered:'Registration complete.'
+    registered:'Registration complete.',
+    stories:'PRASANN Stories',loadError:'Unable to load products. Please try again later.',
+    noStories:'No stories available right now.',refresh:'Refresh products'
   },
   hi: {
     reg_t:'जारी रखने के लिए रजिस्टर करें',reg_s:'कृपया अपनी जानकारी दें ताकि हम आपकी सेवा कर सकें।',
@@ -88,18 +89,15 @@ const T = {
     quantity:'मात्रा',checkoutBlocked:'चेकआउट के लिए कीमत की पुष्टि ज़रूरी है।',
     accountMissing:'अकाउंट देखने के लिए पहले रजिस्टर करें।',
     profileError:'नाम, मोबाइल, ईमेल और पता जाँचें।',
-    registered:'रजिस्ट्रेशन पूरा हुआ।'
+    registered:'रजिस्ट्रेशन पूरा हुआ।',
+    stories:'प्रसन्न स्टोरीज़',loadError:'उत्पाद लोड नहीं हो पाए। कृपया बाद में दोबारा प्रयास करें।',
+    noStories:'अभी कोई स्टोरी उपलब्ध नहीं है।',refresh:'उत्पाद दोबारा लोड करें'
   }
 };
 
 const CATN = {
   en:{snacks:'Snacks',indian:'Indian Meals',south:'South Indian Meals',fast:'Fast Food',sweets:'Sweets'},
   hi:{snacks:'स्नैक्स',indian:'भारतीय भोजन',south:'दक्षिण भारतीय भोजन',fast:'फास्ट फूड',sweets:'मिठाई'}
-};
-
-const PN = {
-  en:{kaju:['PRASANN Kaju Shape Snacks','Description coming soon.']},
-  hi:{kaju:['प्रसन्न काजू शेप स्नैक्स','विवरण जल्द आएगा।']}
 };
 
 let lang = 'en';
@@ -116,36 +114,44 @@ function readStore(key, fallback) {
     return v ? JSON.parse(v) : fallback;
   } catch (_) { return fallback; }
 }
+
 function saveStore(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); return true; }
-  catch (_) { return false; }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (_) { return false; }
 }
 
 let cart = readStore(STORE.cart, []);
 let wishlist = readStore(STORE.wishlist, []);
 let user = readStore(STORE.user, null);
 lang = readStore(STORE.lang, 'en');
+
 if (!['en','hi'].includes(lang)) lang = 'en';
 if (!Array.isArray(cart)) cart = [];
 if (!Array.isArray(wishlist)) wishlist = [];
 
 const $ = s => document.querySelector(s);
-const t = k => T[lang][k] || T.en[k] || k;
+const t = k => (T[lang] && T[lang][k]) || T.en[k] || k;
 
 function packPrice(ppk, grams) {
-  return Math.round(ppk * grams) / 1000;
+  return Math.round(Number(ppk) * grams) / 1000;
 }
+
 function money(n) {
   return '₹' + (Number.isInteger(n) ? n : Number(n).toFixed(2));
 }
+
 function packLabel(g) {
   return g >= 1000 ? (g / 1000) + ' kg' : g + ' g';
 }
+
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   })[c]);
 }
+
 function validate(v) {
   const e = {};
   if (!v.name || v.name.trim().length < 2) e.name = 'e_name';
@@ -156,10 +162,24 @@ function validate(v) {
   if (!v.consent) e.consent = 'e_consent';
   return e;
 }
+
 function lineOk(item) {
-  const p = PRODUCTS.find(x => x.id === item.id);
+  const p = PRODUCTS.find(x => String(x.id) === String(item.id));
   return !!(p && p.available && Number(p.pricePerKg) > 0);
 }
+
+function getProductName(product) {
+  return lang === 'hi'
+    ? (product.name_hi || product.name || product.id)
+    : (product.name || product.name_hi || product.id);
+}
+
+function getProductDescription(product) {
+  return lang === 'hi'
+    ? (product.description_hi || product.description || '')
+    : (product.description || product.description_hi || '');
+}
+
 function buildMsg(u, items, note) {
   const lines = [
     'PRASANN — Order Enquiry', '',
@@ -168,289 +188,640 @@ function buildMsg(u, items, note) {
     'Email: ' + (u.email || '-'),
     'Delivery Address: ' + u.addr, '', 'Items:'
   ];
+
   let total = 0;
+
   items.forEach(item => {
-    const p = PRODUCTS.find(x => x.id === item.id);
+    const p = PRODUCTS.find(x => String(x.id) === String(item.id));
     if (!p || !lineOk(item)) return;
+
     const unit = packPrice(p.pricePerKg, item.g);
     const lineTotal = unit * item.q;
     total += lineTotal;
-    lines.push('- ' + PN.en[p.id][0] + ' | ' + packLabel(item.g) +
+
+    lines.push('- ' + getProductName(p) + ' | ' + packLabel(item.g) +
       ' | Qty ' + item.q + ' | ' + money(unit) +
       ' each | ' + money(lineTotal));
   });
+
   lines.push('', 'Order Total: ' + money(total),
     'Customer Note: ' + (note || '-'),
     '', 'Please confirm product availability and delivery details.');
+
   return lines.join('\n');
 }
+
 function waUrl(msg) {
   const number = String(CFG.WHATSAPP || '918448047203').replace(/\D/g, '');
   return 'https://wa.me/' + number + '?text=' + encodeURIComponent(msg);
 }
 
+/* Supabase helpers */
+
+function supabaseReady() {
+  return !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
+}
+
+function supabaseHeaders() {
+  return {
+    apikey: CFG.SUPABASE_ANON_KEY,
+    Authorization: 'Bearer ' + CFG.SUPABASE_ANON_KEY
+  };
+}
+
+async function supabaseGet(table, query) {
+  if (!supabaseReady()) {
+    throw new Error('Supabase URL or anon key is missing in config.js');
+  }
+
+  const base = CFG.SUPABASE_URL.replace(/\/+$/, '');
+  const url = base + '/rest/v1/' + table + '?' + query;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...supabaseHeaders(),
+      Accept: 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(table + ' request failed (' + response.status + '): ' + details);
+  }
+
+  return response.json();
+}
+
+function normalizeCategory(value) {
+  const v = String(value || '').toLowerCase().trim();
+
+  const aliases = {
+    snack:'snacks',
+    snacks:'snacks',
+    kaju:'snacks',
+    mathri:'snacks',
+    indian:'indian',
+    'indian meals':'indian',
+    south:'south',
+    'south indian':'south',
+    'south indian meals':'south',
+    fast:'fast',
+    'fast food':'fast',
+    sweets:'sweets',
+    sweet:'sweets',
+    mithai:'sweets'
+  };
+
+  return aliases[v] || (CATS.includes(v) ? v : 'snacks');
+}
+
+function normalizePacks(raw) {
+  if (!raw) return DEFAULT_PACKS.map(g => ({ grams:g, price:null }));
+
+  let value = raw;
+
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); }
+    catch (_) { return DEFAULT_PACKS.map(g => ({ grams:g, price:null })); }
+  }
+
+  if (!Array.isArray(value)) {
+    if (typeof value === 'object') {
+      value = Object.entries(value).map(([grams, price]) => ({
+        grams:Number(grams),
+        price:Number(price)
+      }));
+    } else {
+      return DEFAULT_PACKS.map(g => ({ grams:g, price:null }));
+    }
+  }
+
+  const result = value.map(item => {
+    if (typeof item === 'number') {
+      return { grams:item, price:null };
+    }
+
+    const grams = Number(
+      item.grams ?? item.g ?? item.weight ?? item.size ??
+      item.pack_grams ?? item.quantity ?? item.value
+    );
+
+    const priceRaw =
+      item.price ?? item.amount ?? item.pack_price ??
+      item.selling_price ?? item.sellingPrice;
+
+    const price = priceRaw === undefined || priceRaw === null || priceRaw === ''
+      ? null
+      : Number(priceRaw);
+
+    return {
+      grams,
+      price:Number.isFinite(price) && price > 0 ? price : null
+    };
+  }).filter(item => Number.isFinite(item.grams) && item.grams > 0);
+
+  return result.length ? result : DEFAULT_PACKS.map(g => ({ grams:g, price:null }));
+}
+
+function normalizeProduct(row) {
+  const id = String(row.id ?? row.slug ?? row.product_id ?? '');
+  const priceValue = row.price_per_kg ?? row.pricePerKg ?? row.price_per_kg_inr;
+  const price = priceValue === null || priceValue === undefined || priceValue === ''
+    ? null
+    : Number(priceValue);
+
+  const status = String(row.status ?? 'active').toLowerCase();
+  const available = row.available !== false &&
+    row.is_available !== false &&
+    !['inactive','hidden','unavailable','draft','disabled'].includes(status);
+
+  return {
+    id,
+    name:row.name || row.title || id,
+    name_hi:row.name_hi || row.title_hi || '',
+    description:row.description || row.details || '',
+    description_hi:row.description_hi || '',
+    image_url:row.image_url || row.photo_url || row.image || '',
+    video_url:row.video_url || '',
+    cat:normalizeCategory(row.category || row.cat),
+    pricePerKg:Number.isFinite(price) && price > 0 ? price : null,
+    packOptions:normalizePacks(row.pack_options || row.packs),
+    available
+  };
+}
+
+async function loadProducts() {
+  try {
+    const rows = await supabaseGet(
+      'products',
+      'select=*&order=created_at.desc'
+    );
+
+    PRODUCTS = rows
+      .map(normalizeProduct)
+      .filter(p => p.id && p.available);
+
+    render();
+
+    if (!PRODUCTS.length) {
+      console.info('PRASANN: Supabase returned no visible products.');
+    }
+  } catch (error) {
+    console.error('PRASANN product loading error:', error);
+
+    const box = $('#prods');
+    if (box) {
+      box.innerHTML =
+        '<p class="warn">' + escapeHTML(t('loadError')) + '</p>' +
+        '<button type="button" class="btn" id="retryProducts">' +
+        escapeHTML(t('refresh')) + '</button>';
+
+      const retry = $('#retryProducts');
+      if (retry) retry.onclick = loadProducts;
+    }
+  }
+}
+
+async function loadStories() {
+  try {
+    const rows = await supabaseGet(
+      'stories',
+      'select=*&order=created_at.desc'
+    );
+
+    const now = Date.now();
+
+    STORIES = rows.filter(story => {
+      if (!story.image_url) return false;
+
+      if (story.expires_at) {
+        const expiry = new Date(story.expires_at).getTime();
+        if (Number.isFinite(expiry) && expiry <= now) return false;
+      }
+
+      return true;
+    });
+
+    renderStories();
+  } catch (error) {
+    console.error('PRASANN stories loading error:', error);
+    renderStoriesError();
+  }
+}
+
+function ensureStoriesSection() {
+  let section = $('#storiesSection');
+
+  if (section) return section;
+
+  const shop = $('#shopSection');
+  if (!shop || !shop.parentNode) return null;
+
+  section = document.createElement('section');
+  section.id = 'storiesSection';
+  section.className = 'section';
+  section.innerHTML =
+    '<h2>' + escapeHTML(t('stories')) + '</h2>' +
+    '<div id="storiesList" class="stories-list"></div>';
+
+  shop.parentNode.insertBefore(section, shop);
+  return section;
+}
+
+function renderStoriesError() {
+  const section = ensureStoriesSection();
+  if (!section) return;
+
+  const list = $('#storiesList');
+  if (list) {
+    list.innerHTML = '<p>' + escapeHTML(t('noStories')) + '</p>';
+  }
+}
+
+function renderStories() {
+  const section = ensureStoriesSection();
+  if (!section) return;
+
+  const list = $('#storiesList');
+  if (!list) return;
+
+  if (!STORIES.length) {
+    list.innerHTML = '<p>' + escapeHTML(t('noStories')) + '</p>';
+    return;
+  }
+
+  list.innerHTML = STORIES.map((story, index) => {
+    const caption = story.caption || '';
+    const image = story.image_url || '';
+
+    return `
+      <article class="story-card">
+        <button type="button" class="story-open"
+          data-story="${index}" aria-label="${escapeHTML(caption || t('stories'))}">
+          <img src="${escapeHTML(image)}"
+            alt="${escapeHTML(caption || 'PRASANN story')}"
+            loading="lazy"
+            style="width:100%;height:190px;object-fit:cover;border-radius:12px">
+        </button>
+        ${caption ? '<p>' + escapeHTML(caption) + '</p>' : ''}
+      </article>`;
+  }).join('');
+}
+
+function renderCategories() {
+  const box = $('#cats');
+  if (!box) return;
+
+  box.innerHTML = CATS.map(c => {
+    const has = PRODUCTS.some(p => p.cat === c);
+    return `<div class="cat"><b>${escapeHTML(CATN[lang][c])}</b>${
+      has ? '' : `<span class="soon">${escapeHTML(t('soon'))}</span>`
+    }</div>`;
+  }).join('');
+}
+
+function renderProducts() {
+  const box = $('#prods');
+  if (!box) return;
+
+  const search = $('#q');
+  const q = search ? search.value.trim().toLowerCase() : '';
+
+  const list = PRODUCTS.filter(p => {
+    const text = [
+      getProductName(p),
+      getProductDescription(p),
+      p.cat,
+      CATN[lang][p.cat] || ''
+    ].join(' ').toLowerCase();
+
+    return !q || text.includes(q);
+  });
+
+  if (!list.length) {
+    box.innerHTML = `<p>${escapeHTML(t('nores'))}</p>`;
+    return;
+  }
+
+  box.innerHTML = list.map(p => {
+    const saved = wishlist.some(id => String(id) === String(p.id));
+    const name = getProductName(p);
+    const description = getProductDescription(p);
+    const packs = p.packOptions || DEFAULT_PACKS.map(g => ({ grams:g, price:null }));
+
+    const image = p.image_url
+      ? `<img src="${escapeHTML(p.image_url)}"
+          alt="${escapeHTML(name)}"
+          loading="lazy"
+          style="width:100%;height:190px;object-fit:cover;border-radius:12px">`
+      : `<div class="ph">${escapeHTML(t('pphc'))}</div>`;
+
+    const video = p.video_url
+      ? `<p><a href="${escapeHTML(p.video_url)}" target="_blank" rel="noopener noreferrer">▶ Watch product video</a></p>`
+      : '';
+
+    return `<article class="card">
+      ${image}
+      <h3>${escapeHTML(name)}</h3>
+      <p>${escapeHTML(description)}</p>
+      ${video}
+      <label>${escapeHTML(t('pack'))}
+        <select id="pk-${escapeHTML(p.id)}">
+          ${packs.map(pack => {
+            const price = pack.price;
+            const label = packLabel(pack.grams);
+            const priceText = price > 0 ? ' — ' + money(price) :
+              (p.pricePerKg > 0 ? ' — ' + money(packPrice(p.pricePerKg, pack.grams)) : '');
+
+            return `<option value="${pack.grams}" data-pack-price="${price || ''}">
+              ${escapeHTML(label + priceText)}
+            </option>`;
+          }).join('')}
+        </select>
+      </label>
+      ${p.pricePerKg > 0 ? '' : `<p class="warn">${escapeHTML(t('nopr'))}</p>`}
+      <button type="button" class="btn" data-add="${escapeHTML(p.id)}">
+        ${escapeHTML(t('add'))}
+      </button>
+      <button type="button" class="wish-btn ${saved ? 'saved' : ''}"
+        data-wish="${escapeHTML(p.id)}">
+        ${escapeHTML(saved ? t('removeWish') : t('addWish'))}
+      </button>
+    </article>`;
+  }).join('');
+}
+
+function renderCart() {
+  const count = $('#cnt');
+  const box = $('#cartItems');
+  const totalBox = $('#tot');
+  const waButton = $('#wa');
+
+  if (!count || !box || !totalBox || !waButton) return;
+
+  count.textContent = cart.reduce((sum, item) => sum + Number(item.q || 0), 0);
+
+  if (!cart.length) {
+    box.innerHTML = `<p>${escapeHTML(t('empty'))}</p>`;
+    totalBox.textContent = '';
+    waButton.disabled = true;
+    return;
+  }
+
+  let total = 0;
+  let allPriced = true;
+
+  box.innerHTML = cart.map((item, index) => {
+    const p = PRODUCTS.find(x => String(x.id) === String(item.id));
+    if (!p) return '';
+
+    const name = getProductName(p);
+    const priced = lineOk(item);
+    const pack = (p.packOptions || []).find(x => Number(x.grams) === Number(item.g));
+    let detail = t('priceWait');
+
+    if (priced) {
+      const unit = pack && pack.price > 0
+        ? pack.price
+        : packPrice(p.pricePerKg, item.g);
+
+      const lineTotal = unit * item.q;
+      total += lineTotal;
+      detail = `${money(unit)} × ${item.q} = ${money(lineTotal)}`;
+    } else {
+      allPriced = false;
+    }
+
+    return `<div class="line">
+      <div><b>${escapeHTML(name)}</b><br>
+      ${escapeHTML(packLabel(item.g))} · ${escapeHTML(detail)}</div>
+      <div>
+        <button type="button" class="sm" data-qty="${index}" data-delta="-1">−</button>
+        <button type="button" class="sm" data-qty="${index}" data-delta="1">+</button>
+        <button type="button" class="sm" data-remove="${index}">${escapeHTML(t('remove'))}</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  totalBox.textContent = allPriced
+    ? t('total') + ': ' + money(total)
+    : t('checkoutBlocked');
+
+  waButton.disabled = !allPriced || !user || !cart.length;
+}
+
+function renderWishlist() {
+  const box = $('#wishlistItems');
+  if (!box) return;
+
+  if (!wishlist.length) {
+    box.innerHTML = `<p>${escapeHTML(t('emptyWishlist'))}</p>`;
+    return;
+  }
+
+  box.innerHTML = wishlist.map(id => {
+    const p = PRODUCTS.find(x => String(x.id) === String(id));
+    if (!p) return '';
+
+    return `<div class="item-card">
+      <h3>${escapeHTML(getProductName(p))}</h3>
+      <p>${escapeHTML(getProductDescription(p))}</p>
+      <button type="button" class="btn" data-wish-addcart="${escapeHTML(p.id)}">${escapeHTML(t('add'))}</button>
+      <button type="button" class="hb" data-wish-remove="${escapeHTML(p.id)}">${escapeHTML(t('remove'))}</button>
+    </div>`;
+  }).join('');
+}
+
+function renderAccount() {
+  const form = $('#accountForm');
+  const box = $('#accountView');
+  if (!form || !box) return;
+
+  form.hidden = true;
+
+  if (!user) {
+    box.innerHTML = `<p>${escapeHTML(t('accountMissing'))}</p>`;
+    return;
+  }
+
+  box.innerHTML = `
+    <div class="item-card">
+      <h3>${escapeHTML(user.name)}</h3>
+      <p><b>${escapeHTML(t('mobile'))}:</b> ${escapeHTML(user.mobile)}</p>
+      <p><b>${escapeHTML(t('email'))}:</b> ${escapeHTML(user.email)}</p>
+      <p><b>${escapeHTML(t('addr'))}:</b><br>${escapeHTML(user.addr)}</p>
+      <button type="button" class="btn" id="editProfileBtn">${escapeHTML(t('editProfile'))}</button>
+    </div>`;
+
+  $('#editProfileBtn').onclick = beginEdit;
+}
+
+function render() {
+  renderCategories();
+  renderProducts();
+  renderCart();
+  renderWishlist();
+  renderAccount();
+  renderStories();
+}
+
+function applyLang() {
+  document.documentElement.lang = lang;
+
+  document.querySelectorAll('[data-i]').forEach(el => {
+    el.textContent = t(el.dataset.i);
+  });
+
+  document.querySelectorAll('[data-ph]').forEach(el => {
+    el.placeholder = t(el.dataset.ph);
+  });
+
+  render();
+}
+
+function addToCart(id, grams) {
+  const product = PRODUCTS.find(p => String(p.id) === String(id));
+  if (!product || !product.available) return;
+
+  const found = cart.find(i =>
+    String(i.id) === String(id) && Number(i.g) === Number(grams)
+  );
+
+  if (found) found.q++;
+  else cart.push({id:product.id, g:Number(grams), q:1});
+
+  saveStore(STORE.cart, cart);
+  render();
+  showPanel('cartPanel');
+}
+
+function showPanel(id) {
+  ['cartPanel','wishlistPanel','accountPanel'].forEach(panelId => {
+    const panel = $('#' + panelId);
+    if (!panel) return;
+
+    if (panelId === 'cartPanel') {
+      panel.classList.toggle('open', panelId === id);
+    } else {
+      panel.hidden = panelId !== id;
+    }
+  });
+
+  document.querySelectorAll('[data-nav]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.nav === ({
+      cartPanel:'cart',
+      wishlistPanel:'wishlist',
+      accountPanel:'account'
+    }[id] || id));
+  });
+}
+
+function closePanels() {
+  const cartPanel = $('#cartPanel');
+  const wishPanel = $('#wishlistPanel');
+  const accountPanel = $('#accountPanel');
+
+  if (cartPanel) cartPanel.classList.remove('open');
+  if (wishPanel) wishPanel.hidden = true;
+  if (accountPanel) accountPanel.hidden = true;
+
+  document.querySelectorAll('[data-nav]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.nav === 'home');
+  });
+}
+
+function beginEdit() {
+  if (!user) return;
+
+  $('#editName').value = user.name || '';
+  $('#editMobile').value = user.mobile || '';
+  $('#editEmail').value = user.email || '';
+  $('#editAddr').value = user.addr || '';
+  $('#accountError').textContent = '';
+  $('#accountForm').hidden = false;
+  $('#editName').focus();
+}
+
+function switchLang() {
+  lang = lang === 'en' ? 'hi' : 'en';
+  saveStore(STORE.lang, lang);
+  applyLang();
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = {packPrice, validate, buildMsg, waUrl, PRODUCTS};
+  module.exports = {
+    packPrice, validate, buildMsg, waUrl,
+    get PRODUCTS() { return PRODUCTS; }
+  };
 }
 
 if (typeof document !== 'undefined') (function () {
-  const configured = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
+  const configured = supabaseReady();
 
-  function applyLang() {
-    document.documentElement.lang = lang;
-    document.querySelectorAll('[data-i]').forEach(el => {
-      el.textContent = t(el.dataset.i);
-    });
-    document.querySelectorAll('[data-ph]').forEach(el => {
-      el.placeholder = t(el.dataset.ph);
-    });
-    render();
-  }
-
-  function renderCats() {
-    $('#cats').innerHTML = CATS.map(c => {
-      const has = PRODUCTS.some(p => p.cat === c);
-      return `<div class="cat"><b>${escapeHTML(CATN[lang][c])}</b>${
-        has ? '' : `<span class="soon">${t('soon')}</span>`
-      }</div>`;
-    }).join('');
-  }
-
-  function renderProducts() {
-    const q = $('#q').value.trim().toLowerCase();
-    const list = PRODUCTS.filter(p => {
-      const n = PN[lang][p.id] || [p.id, ''];
-      return !q || (n[0] + ' ' + n[1] + ' ' + CATN[lang][p.cat])
-        .toLowerCase().includes(q);
-    });
-
-    $('#prods').innerHTML = list.length ? list.map(p => {
-      const n = PN[lang][p.id] || [p.id, ''];
-      const saved = wishlist.includes(p.id);
-      return `<article class="card">
-        <div class="ph">${t('pphc')}</div>
-        <h3>${escapeHTML(n[0])}</h3>
-        <p>${escapeHTML(n[1])}</p>
-        ${p.available ? '' : `<p class="warn">${t('unavail')}</p>`}
-        <label>${t('pack')}
-          <select id="pk-${p.id}">
-            ${PACKS.map(g => `<option value="${g}">${packLabel(g)}${
-              p.pricePerKg > 0 ? ' — ' + money(packPrice(p.pricePerKg,g)) : ''
-            }</option>`).join('')}
-          </select>
-        </label>
-        ${p.pricePerKg > 0 ? '' : `<p class="warn">${t('nopr')}</p>`}
-        <button class="btn" data-add="${p.id}" ${p.available ? '' : 'disabled'}>
-          ${t('add')}
-        </button>
-        <button class="wish-btn ${saved ? 'saved' : ''}" data-wish="${p.id}">
-          ${saved ? t('removeWish') : t('addWish')}
-        </button>
-      </article>`;
-    }).join('') : `<p>${t('nores')}</p>`;
-  }
-
-  function renderCart() {
-    $('#cnt').textContent = cart.reduce((sum, item) => sum + item.q, 0);
-    const box = $('#cartItems');
-
-    if (!cart.length) {
-      box.innerHTML = `<p>${t('empty')}</p>`;
-      $('#tot').textContent = '';
-      $('#wa').disabled = true;
-      return;
-    }
-
-    let total = 0;
-    let allPriced = true;
-
-    box.innerHTML = cart.map((item, index) => {
-      const p = PRODUCTS.find(x => x.id === item.id);
-      if (!p) return '';
-      const n = PN[lang][p.id] || [p.id, ''];
-      const priced = lineOk(item);
-      let detail = t('priceWait');
-
-      if (priced) {
-        const unit = packPrice(p.pricePerKg, item.g);
-        const lineTotal = unit * item.q;
-        total += lineTotal;
-        detail = `${money(unit)} × ${item.q} = ${money(lineTotal)}`;
-      } else {
-        allPriced = false;
-      }
-
-      return `<div class="line">
-        <div><b>${escapeHTML(n[0])}</b><br>
-        ${packLabel(item.g)} · ${detail}</div>
-        <div>
-          <button class="sm" data-qty="${index}" data-delta="-1" aria-label="Decrease quantity">−</button>
-          <button class="sm" data-qty="${index}" data-delta="1" aria-label="Increase quantity">+</button>
-          <button class="sm" data-remove="${index}">${t('remove')}</button>
-        </div>
-      </div>`;
-    }).join('');
-
-    $('#tot').textContent = allPriced
-      ? t('total') + ': ' + money(total)
-      : t('checkoutBlocked');
-
-    // Do not send an order total while any item has no confirmed price.
-    $('#wa').disabled = !allPriced || !user;
-  }
-
-  function renderWishlist() {
-    if (!wishlist.length) {
-      $('#wishlistItems').innerHTML = `<p>${t('emptyWishlist')}</p>`;
-      return;
-    }
-
-    $('#wishlistItems').innerHTML = wishlist.map(id => {
-      const p = PRODUCTS.find(x => x.id === id);
-      if (!p) return '';
-      const n = PN[lang][id] || [id, ''];
-      return `<div class="item-card">
-        <h3>${escapeHTML(n[0])}</h3>
-        <p>${escapeHTML(n[1])}</p>
-        <button class="btn" data-wish-addcart="${id}">${t('add')}</button>
-        <button class="hb" style="color:var(--g);border-color:var(--g)"
-          data-wish-remove="${id}">${t('remove')}</button>
-      </div>`;
-    }).join('');
-  }
-
-  function renderAccount() {
-    $('#accountForm').hidden = true;
-    if (!user) {
-      $('#accountView').innerHTML = `<p>${t('accountMissing')}</p>`;
-      return;
-    }
-
-    $('#accountView').innerHTML = `
-      <div class="item-card">
-        <h3>${escapeHTML(user.name)}</h3>
-        <p><b>${t('mobile')}:</b> ${escapeHTML(user.mobile)}</p>
-        <p><b>${t('email')}:</b> ${escapeHTML(user.email)}</p>
-        <p><b>${t('addr')}:</b><br>${escapeHTML(user.addr)}</p>
-        <button type="button" class="btn" id="editProfileBtn">${t('editProfile')}</button>
-      </div>`;
-
-    $('#editProfileBtn').onclick = beginEdit;
-  }
-
-  function render() {
-    renderCats();
-    renderProducts();
-    renderCart();
-    renderWishlist();
-    renderAccount();
-  }
-
-  function addToCart(id, grams) {
-    const product = PRODUCTS.find(p => p.id === id);
-    if (!product || !product.available) return;
-    const found = cart.find(i => i.id === id && i.g === grams);
-    if (found) found.q++;
-    else cart.push({id, g: grams, q: 1});
-    saveStore(STORE.cart, cart);
-    render();
-    showPanel('cartPanel');
-  }
-
-  function showPanel(id) {
-    ['cartPanel','wishlistPanel','accountPanel'].forEach(panelId => {
-      const panel = $('#' + panelId);
-      if (panel) panel.classList.toggle('open', panelId === id);
-      if (panel && panelId !== 'cartPanel') panel.hidden = panelId !== id;
-    });
-
-    // The original cart uses a slide-in class rather than hidden.
-    if (id === 'cartPanel') {
-      $('#cartPanel').classList.add('open');
-    } else {
-      $('#cartPanel').classList.remove('open');
-    }
-
-    document.querySelectorAll('[data-nav]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.nav === ({
-        cartPanel:'cart', wishlistPanel:'wishlist', accountPanel:'account'
-      }[id] || id));
-    });
-  }
-
-  function closePanels() {
-    $('#cartPanel').classList.remove('open');
-    $('#wishlistPanel').hidden = true;
-    $('#accountPanel').hidden = true;
-    document.querySelectorAll('[data-nav]').forEach(b => {
-      b.classList.toggle('active', b.dataset.nav === 'home');
-    });
-  }
-
-  function beginEdit() {
-    if (!user) return;
-    $('#editName').value = user.name || '';
-    $('#editMobile').value = user.mobile || '';
-    $('#editEmail').value = user.email || '';
-    $('#editAddr').value = user.addr || '';
-    $('#accountError').textContent = '';
-    $('#accountForm').hidden = false;
-    $('#editName').focus();
-  }
-
-  function switchLang() {
-    lang = lang === 'en' ? 'hi' : 'en';
-    saveStore(STORE.lang, lang);
-    applyLang();
-  }
-
-  // Delegated product, wishlist and quantity actions.
   document.addEventListener('click', event => {
-    const nav = event.target.closest('[data-nav]');
+    const target = event.target;
+
+    const storyButton = target.closest('[data-story]');
+    if (storyButton) {
+      const story = STORIES[Number(storyButton.dataset.story)];
+      if (story && story.image_url) {
+        window.open(story.image_url, '_blank', 'noopener');
+      }
+      return;
+    }
+
+    const nav = target.closest('[data-nav]');
     if (nav) {
       const dest = nav.dataset.nav;
+
       if (dest === 'home') {
         closePanels();
-        $('#home').scrollIntoView({behavior:'smooth'});
+        if ($('#home')) $('#home').scrollIntoView({behavior:'smooth'});
       } else if (dest === 'shop') {
         closePanels();
-        $('#shopSection').scrollIntoView({behavior:'smooth'});
-      } else if (dest === 'cart') showPanel('cartPanel');
-      else if (dest === 'wishlist') {
-        $('#wishlistPanel').hidden = false;
+        if ($('#shopSection')) $('#shopSection').scrollIntoView({behavior:'smooth'});
+      } else if (dest === 'cart') {
+        showPanel('cartPanel');
+      } else if (dest === 'wishlist') {
         showPanel('wishlistPanel');
       } else if (dest === 'account') {
-        $('#accountPanel').hidden = false;
         showPanel('accountPanel');
       }
+
       return;
     }
 
-    const close = event.target.closest('[data-close]');
-    if (close) { closePanels(); return; }
+    if (target.closest('[data-close]')) {
+      closePanels();
+      return;
+    }
 
-    const add = event.target.closest('[data-add]');
+    const add = target.closest('[data-add]');
     if (add) {
-      const select = $('#pk-' + add.dataset.add);
-      addToCart(add.dataset.add, Number(select.value));
+      const select = $('#pk-' + CSS.escape(add.dataset.add));
+      if (select) addToCart(add.dataset.add, Number(select.value));
       return;
     }
 
-    const wish = event.target.closest('[data-wish]');
+    const wish = target.closest('[data-wish]');
     if (wish) {
       const id = wish.dataset.wish;
-      wishlist = wishlist.includes(id)
-        ? wishlist.filter(x => x !== id)
+
+      wishlist = wishlist.some(x => String(x) === String(id))
+        ? wishlist.filter(x => String(x) !== String(id))
         : [...wishlist, id];
+
       saveStore(STORE.wishlist, wishlist);
       render();
       return;
     }
 
-    const qty = event.target.closest('[data-qty]');
+    const qty = target.closest('[data-qty]');
     if (qty) {
       const i = Number(qty.dataset.qty);
       const delta = Number(qty.dataset.delta);
+
       if (cart[i]) {
         cart[i].q += delta;
         if (cart[i].q <= 0) cart.splice(i, 1);
@@ -460,7 +831,7 @@ if (typeof document !== 'undefined') (function () {
       return;
     }
 
-    const remove = event.target.closest('[data-remove]');
+    const remove = target.closest('[data-remove]');
     if (remove) {
       cart.splice(Number(remove.dataset.remove), 1);
       saveStore(STORE.cart, cart);
@@ -468,40 +839,49 @@ if (typeof document !== 'undefined') (function () {
       return;
     }
 
-    const wishRemove = event.target.closest('[data-wish-remove]');
+    const wishRemove = target.closest('[data-wish-remove]');
     if (wishRemove) {
-      wishlist = wishlist.filter(id => id !== wishRemove.dataset.wishRemove);
+      wishlist = wishlist.filter(id => String(id) !== String(wishRemove.dataset.wishRemove));
       saveStore(STORE.wishlist, wishlist);
       render();
       return;
     }
 
-    const wishAdd = event.target.closest('[data-wish-addcart]');
+    const wishAdd = target.closest('[data-wish-addcart]');
     if (wishAdd) {
-      const select = $('#pk-' + wishAdd.dataset.wishAddcart);
-      addToCart(wishAdd.dataset.wishAddcart, select ? Number(select.value) : PACKS[0]);
+      const id = wishAdd.dataset.wishAddcart;
+      const select = $('#pk-' + CSS.escape(id));
+      addToCart(id, select ? Number(select.value) : DEFAULT_PACKS[0]);
     }
   });
 
-  $('#cartBtn').onclick = () => showPanel('cartPanel');
-  $('#langBtn').onclick = switchLang;
-  $('#langBtn2').onclick = switchLang;
-  $('#q').oninput = renderProducts;
+  if ($('#cartBtn')) $('#cartBtn').onclick = () => showPanel('cartPanel');
+  if ($('#langBtn')) $('#langBtn').onclick = switchLang;
+  if ($('#langBtn2')) $('#langBtn2').onclick = switchLang;
+  if ($('#q')) $('#q').oninput = renderProducts;
 
-  $('#clear').onclick = () => {
-    cart = [];
-    saveStore(STORE.cart, cart);
-    render();
-  };
+  if ($('#clear')) {
+    $('#clear').onclick = () => {
+      cart = [];
+      saveStore(STORE.cart, cart);
+      render();
+    };
+  }
 
-  $('#wa').onclick = () => {
-    if (!user || !cart.length || cart.some(item => !lineOk(item))) {
-      alert(t('checkoutBlocked'));
-      return;
-    }
-    window.open(waUrl(buildMsg(user, cart, $('#note').value.trim())),
-      '_blank', 'noopener');
-  };
+  if ($('#wa')) {
+    $('#wa').onclick = () => {
+      if (!user || !cart.length || cart.some(item => !lineOk(item))) {
+        alert(t('checkoutBlocked'));
+        return;
+      }
+
+      window.open(
+        waUrl(buildMsg(user, cart, $('#note') ? $('#note').value.trim() : '')),
+        '_blank',
+        'noopener'
+      );
+    };
+  }
 
   document.querySelectorAll('[data-modal]').forEach(link => {
     link.addEventListener('click', event => {
@@ -510,96 +890,132 @@ if (typeof document !== 'undefined') (function () {
       $('#modal').hidden = false;
     });
   });
-  $('#mclose').onclick = () => { $('#modal').hidden = true; };
 
-  $('#regForm').addEventListener('submit', async event => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const v = {
-      name: form.elements.name.value.trim(),
-      mobile: form.elements.mobile.value.trim(),
-      email: form.elements.email.value.trim(),
-      addr: form.elements.addr.value.trim(),
-      consent: form.elements.consent.checked
-    };
-    const errors = validate(v);
-    document.querySelectorAll('.err').forEach(el => { el.textContent = ''; });
-    Object.keys(errors).forEach(key => {
-      $('#e-' + key).textContent = t(errors[key]);
+  if ($('#mclose')) {
+    $('#mclose').onclick = () => { $('#modal').hidden = true; };
+  }
+
+  if ($('#regForm')) {
+    $('#regForm').addEventListener('submit', async event => {
+      event.preventDefault();
+
+      const form = event.currentTarget;
+      const v = {
+        name:form.elements.name.value.trim(),
+        mobile:form.elements.mobile.value.trim(),
+        email:form.elements.email.value.trim(),
+        addr:form.elements.addr.value.trim(),
+        consent:form.elements.consent.checked
+      };
+
+      const errors = validate(v);
+      document.querySelectorAll('.err').forEach(el => { el.textContent = ''; });
+
+      Object.keys(errors).forEach(key => {
+        const errorBox = $('#e-' + key);
+        if (errorBox) errorBox.textContent = t(errors[key]);
+      });
+
+      if (Object.keys(errors).length) return;
+
+      if (configured) {
+        try {
+          const response = await fetch(
+            CFG.SUPABASE_URL.replace(/\/+$/, '') + '/functions/v1/hyper-responder',
+            {
+              method:'POST',
+              headers:{
+                'Content-Type':'application/json',
+                apikey:CFG.SUPABASE_ANON_KEY,
+                Authorization:'Bearer ' + CFG.SUPABASE_ANON_KEY
+              },
+              body:JSON.stringify({...v, lang})
+            }
+          );
+
+          if (!response.ok) throw new Error('Registration failed');
+        } catch (error) {
+          console.error('Registration error:', error);
+          $('#e-consent').textContent = 'Registration failed. Please try again.';
+          return;
+        }
+      }
+
+      user = {
+        name:v.name,
+        mobile:v.mobile,
+        email:v.email,
+        addr:v.addr
+      };
+
+      saveStore(STORE.user, user);
+      $('#reg').hidden = true;
+      $('#welcome').hidden = false;
+      render();
     });
-    if (Object.keys(errors).length) return;
+  }
 
-    if (configured) {
-      try {
-        const response = await fetch(CFG.SUPABASE_URL + '/functions/v1/hyper-responder', {
-          method:'POST',
-          headers:{
-            'Content-Type':'application/json',
-            apikey:CFG.SUPABASE_ANON_KEY
-          },
-          body:JSON.stringify({...v, lang})
-        });
-        if (!response.ok) throw new Error('Registration failed');
-      } catch (_) {
-        $('#e-consent').textContent = 'Registration failed. Please try again.';
+  if ($('#enter')) {
+    $('#enter').onclick = () => {
+      $('#welcome').hidden = true;
+      $('#site').hidden = false;
+      render();
+    };
+  }
+
+  if ($('#accountForm')) {
+    $('#accountForm').addEventListener('submit', event => {
+      event.preventDefault();
+
+      const mobile = $('#editMobile').value.trim();
+      const candidate = {
+        name:$('#editName').value.trim(),
+        mobile,
+        email:$('#editEmail').value.trim(),
+        addr:$('#editAddr').value.trim()
+      };
+
+      const normalizedMobile = mobile.replace(/[\s()-]/g, '');
+      const validMobile = /^(?:\+?91)?[6-9]\d{9}$/.test(normalizedMobile);
+      const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate.email);
+
+      if (candidate.name.length < 2 || !validMobile ||
+          !validEmail || candidate.addr.length < 10) {
+        $('#accountError').textContent = t('profileError');
         return;
       }
-    }
 
-    user = {
-      name:v.name, mobile:v.mobile, email:v.email, addr:v.addr
+      user = candidate;
+      saveStore(STORE.user, user);
+      $('#accountError').textContent = '';
+      renderAccount();
+      alert(t('saved'));
+    });
+  }
+
+  if ($('#cancelEdit')) {
+    $('#cancelEdit').onclick = () => {
+      $('#accountForm').hidden = true;
+      $('#accountError').textContent = '';
     };
+  }
 
-    // Browser-local profile storage is not secure account authentication.
-    saveStore(STORE.user, user);
-    $('#reg').hidden = true;
-    $('#welcome').hidden = false;
-    render();
-  });
+  const demo = $('#demo');
+  if (demo) demo.hidden = configured;
 
-  $('#enter').onclick = () => {
-    $('#welcome').hidden = true;
-    $('#site').hidden = false;
-    render();
-  };
-
-  $('#accountForm').addEventListener('submit', event => {
-    event.preventDefault();
-    const mobile = $('#editMobile').value.trim();
-    const candidate = {
-      name:$('#editName').value.trim(),
-      mobile,
-      email:$('#editEmail').value.trim(),
-      addr:$('#editAddr').value.trim()
-    };
-    const normalizedMobile = mobile.replace(/[\s()-]/g, '');
-    const validMobile = /^(?:\+?91)?[6-9]\d{9}$/.test(normalizedMobile);
-    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate.email);
-
-    if (candidate.name.length < 2 || !validMobile || !validEmail ||
-        candidate.addr.length < 10) {
-      $('#accountError').textContent = t('profileError');
-      return;
-    }
-
-    user = candidate;
-    saveStore(STORE.user, user);
-    $('#accountError').textContent = '';
-    renderAccount();
-    alert(t('saved'));
-  });
-
-  $('#cancelEdit').onclick = () => {
-    $('#accountForm').hidden = true;
-    $('#accountError').textContent = '';
-  };
-
-  // Existing users can continue directly to the site on this browser.
-  $('#demo').hidden = configured;
   if (user) {
-    $('#reg').hidden = true;
-    $('#welcome').hidden = false;
+    if ($('#reg')) $('#reg').hidden = true;
+    if ($('#welcome')) $('#welcome').hidden = true;
+    if ($('#site')) $('#site').hidden = false;
   }
 
   applyLang();
+
+  // Admin Panel में सेव किए गए उत्पाद और स्टोरीज़ लोड करें।
+  if (configured) {
+    loadProducts();
+    loadStories();
+  } else {
+    console.error('PRASANN: config.js में Supabase URL या anon key नहीं मिली।');
+  }
 })();
