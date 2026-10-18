@@ -69,7 +69,42 @@ footer a{color:#ffd9bd;margin:0 .6rem}
 .wish-btn{border:1px solid var(--g);background:#fff;color:var(--g);border-radius:999px;padding:.6rem 1rem;min-height:40px;margin-top:.5rem;width:100%}
 .wish-btn.saved{color:var(--o);border-color:var(--o)}
 .nav-note{font-size:.85rem;color:#555}
-@media(min-width:700px){.bottom-nav{left:50%;right:auto;width:min(600px,100%);transform:translateX(-50%);border-radius:14px 14px 0 0}}
+.product-description {
+  margin: 10px 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.product-description summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.product-description summary::-webkit-details-marker {
+  display: none;
+}
+
+.product-description summary::after {
+  content: "▼";
+  font-size: 12px;
+}
+
+.product-description[open] summary::after {
+  content: "▲";
+}
+
+.product-description p {
+  margin: 10px 0 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  }
+  @media(min-width:700px){.bottom-nav{left:50%;right:auto;width:min(600px,100%);transform:translateX(-50%);border-radius:14px 14px 0 0}}
 </style>
 </head>
 <body>
