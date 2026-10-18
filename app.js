@@ -162,10 +162,9 @@ function validate(v) {
   if (!v.consent) e.consent = 'e_consent';
   return e;
 }
-
 function lineOk(item) {
   const p = PRODUCTS.find(x => String(x.id) === String(item.id));
-  return !!(p && p.available && Number(p.pricePerKg) > 0);
+  return !!(p && p.available);
 }
 
 function getProductName(product) {
