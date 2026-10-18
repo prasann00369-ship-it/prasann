@@ -171,7 +171,8 @@ if (!img) {
       status: $('ps').value,
       image_url: img
     };
-msg('फोटो अपलोड हो गई। अब Product सेव हो रहा है...');
+
+msg('फोटो अपलोड हो गई। Product सेव हो रहा है...');
 
 const result = editId
   ? await sb.from('products').update(row).eq('id', editId)
@@ -179,8 +180,9 @@ const result = editId
 
 if (result.error) {
   throw result.error;
+               
 }
-
+   
 msg('Product Save हो गया ✅');
 resetP();
 await loadP();
