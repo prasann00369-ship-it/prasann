@@ -614,11 +614,22 @@ function renderCart() {
     const p = PRODUCTS.find(x => String(x.id) === String(item.id));
     if (!p) return '';
 
-    const name = getProductName(p);
-    const priced = lineOk(item);
-    const pack = (p.packOptions || []).find(x => Number(x.grams) === Number(item.g));
-    let detail = t('priceWait');
+const name = getProductName(p);
+const pack = (p.packOptions || []).find(
+  x => Number(x.grams) === Number(item.g)
+);
 
+let unit = null;
+
+if (pack && Number(pack.price) > 0) {
+  unit = Number(pack.price);
+} else if (Number(p.pricePerKg) > 0) {
+  unit = packPrice(Number(p.pricePerKg), Number(item.g));
+}
+
+const priced = unit !== null && Number.isFinite(unit) && unit > 0;
+let detail = t('priceWait');
+    
     if (priced) {
       const unit = pack && pack.price > 0
         ? pack.price
@@ -908,10 +919,11 @@ if (typeof document !== 'undefined') (function () {
 
   if ($('#wa')) {
     $('#wa').onclick = () => {
-      if (!user || !cart.length || cart.some(item => !lineOk(item))) {
-        alert(t('checkoutBlocked'));
-        return;
-      }
+     if (!user || !cart.length) {
+  alert('Please register and add products to your cart.');
+  return;
+     }
+      
 
       window.open(
         waUrl(buildMsg(user, cart, $('#note') ? $('#note').value.trim() : '')),
