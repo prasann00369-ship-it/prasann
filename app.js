@@ -331,11 +331,12 @@ function normalizeProduct(row) {
     ? null
     : Number(priceValue);
 
+ 
   const status = String(row.status ?? 'active').toLowerCase();
-  const available = row.available !== false &&
+const available = row.available !== false &&
     row.is_available !== false &&
-    !['inactive','hidden','unavailable','draft','disabled'].includes(status);
-
+    ['available','active','coming_soon'].includes(status);
+  
   return {
     id,
     name:row.name || row.title || id,
