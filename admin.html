@@ -141,8 +141,19 @@ if (!f && !editImg) {
     }
 
     let img = editImg;
-    if (f) img = await up(f);
 
+if (f) {
+  msg('फोटो अपलोड हो रही है, कृपया इंतज़ार करें...');
+  img = await up(f);
+
+  if (!img) {
+    throw new Error('फोटो अपलोड नहीं हुई। Supabase Storage की जाँच करें।');
+  }
+}
+
+if (!img) {
+  throw new Error('Product की फोटो का URL नहीं मिला।');
+ }
     const video = $('pvideo').value.trim();
     if (video) {
       try { new URL(video); }
