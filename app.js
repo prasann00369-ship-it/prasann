@@ -578,7 +578,7 @@ function renderProducts() {
           }).join('')}
         </select>
       </label>
-      ${p.pricePerKg > 0 ? '' : `<p class="warn">${escapeHTML(t('nopr'))}</p>`}
+    
       <button type="button" class="btn" data-add="${escapeHTML(p.id)}">
         ${escapeHTML(t('add'))}
       </button>
