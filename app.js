@@ -540,8 +540,8 @@ function renderProducts() {
     const saved = wishlist.some(id => String(id) === String(p.id));
     const name = getProductName(p);
     const description = getProductDescription(p);
+    const descId = 'desc-' + String(p.id).replace(/[^a-zA-Z0-9_-]/g, '');
     const packs = p.packOptions || [];
-
     const image = p.image_url
       ? `<img src="${escapeHTML(p.image_url)}"
           alt="${escapeHTML(name)}"
@@ -574,7 +574,12 @@ function renderProducts() {
     return `<article class="card">
       ${image}
       <h3>${escapeHTML(name)}</h3>
-      <p>${escapeHTML(description)}</p>
+      <details class="product-description">
+  <summary>
+    ${lang === 'hi' ? 'प्रोडक्ट का विवरण' : 'Product Description'}
+  </summary>
+  <p>${escapeHTML(description)}</p>
+</details>
       ${video}
       ${packControl}
       <button type="button" class="btn" data-add="${escapeHTML(p.id)}"
