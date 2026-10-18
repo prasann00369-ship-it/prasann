@@ -63,16 +63,16 @@ button.s{background:var(--g)}button.d{background:var(--r)}button.l{background:tr
  <div class="pp" id="pv"></div>
 <label>Status</label><select id="ps"><option value="available">Available</option><option value="coming_soon">Coming Soon</option></select>
 <label>Product Photo (optional)</label><input id="pf" type="file" accept="image/*">
-<button class="s" onclick="saveP()">Save</button> <button onclick="resetP()" style="background:#999">Clear</button></div>
-<div class="card"><h2>सभी Products</h2><div id="plist"></div></div></div>
-
+ <button class="s" onclick="alert('Product button working');saveP()">Save</button>
+ <button onclick="resetP()" style="background:#999">Clear</button></div>
+ <div class="card"><h2>सभी Products</h2><div id="plist"></div></div></div>
 <div id="p2" class="hide">
 <div class="card"><h2>नई Story (24 घंटे बाद अपने आप हट जाएगी)</h2>
 <label>Photo</label><input id="sf" type="file" accept="image/*">
 <label>Caption</label><input id="sc">
 
-<button class="s" onclick="saveS()">Publish Story</button></div>
-<div class="card"><h2>Live Stories</h2><div id="slist"></div></div></div>
+<button class="s" onclick="alert('Story button working');saveS()">Publish Story</button>
+ <div class="card"><h2>Live Stories</h2><div id="slist"></div></div></div>
 </div></main><div id="msg"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
