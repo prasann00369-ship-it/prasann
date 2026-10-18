@@ -653,9 +653,11 @@ let detail = t('priceWait');
   totalBox.textContent = allPriced
   ? t('total') + ': ' + money(total)
   : t('priceWait');
-
 waButton.disabled = !user || !cart.length;
+}
+
 function renderWishlist() {
+
   const box = $('#wishlistItems');
   if (!box) return;
 
