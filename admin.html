@@ -171,13 +171,21 @@ if (!img) {
       status: $('ps').value,
       image_url: img
     };
+msg('फोटो अपलोड हो गई। अब Product सेव हो रहा है...');
 
-    const { error } = editId
-      ? await sb.from('products').update(row).eq('id', editId)
-      : await sb.from('products').insert(row);
+const result = editId
+  ? await sb.from('products').update(row).eq('id', editId)
+  : await sb.from('products').insert(row);
 
-    if (error) throw error;
-    msg('Save हो गया ✅');
+if (result.error) {
+  throw result.error;
+}
+
+msg('Product Save हो गया ✅');
+resetP();
+await loadP();
+return;
+    
     resetP();
     await loadP();
   } catch (e) {
