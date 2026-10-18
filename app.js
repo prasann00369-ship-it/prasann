@@ -1,6 +1,4 @@
-
 const CFG = window.PRASANN_CONFIG || {};
-const DEFAULT_PACKS = [150, 300, 500, 1000];
 const CATS = ['snacks', 'indian', 'south', 'fast', 'sweets'];
 
 let PRODUCTS = [];
@@ -101,6 +99,7 @@ const CATN = {
 };
 
 let lang = 'en';
+
 const STORE = {
   user:'prasann_profile_v1',
   cart:'prasann_cart_v1',
@@ -134,16 +133,14 @@ if (!Array.isArray(wishlist)) wishlist = [];
 const $ = s => document.querySelector(s);
 const t = k => (T[lang] && T[lang][k]) || T.en[k] || k;
 
-function packPrice(ppk, grams) {
-  return Math.round(Number(ppk) * grams) / 1000;
-}
-
 function money(n) {
-  return '₹' + (Number.isInteger(n) ? n : Number(n).toFixed(2));
+  return '₹' + (Number.isInteger(Number(n)) ? Number(n) : Number(n).toFixed(2));
 }
 
 function packLabel(g) {
-  return g >= 1000 ? (g / 1000) + ' kg' : g + ' g';
+  return g >= 1000 && g % 1000 === 0
+    ? (g / 1000) + ' kg'
+    : g + ' g';
 }
 
 function escapeHTML(value) {
@@ -162,6 +159,7 @@ function validate(v) {
   if (!v.consent) e.consent = 'e_consent';
   return e;
 }
+
 function lineOk(item) {
   const p = PRODUCTS.find(x => String(x.id) === String(item.id));
   return !!(p && p.available);
@@ -178,6 +176,21 @@ function getProductDescription(product) {
     ? (product.description_hi || product.description || '')
     : (product.description || product.description_hi || '');
 }
+
+function findPack(product, grams) {
+  return (product.packOptions || []).find(
+    p => Number(p.grams) === Number(grams)
+  );
+}
+
+function packUnitPrice(product, grams) {
+  const pack = findPack(product, grams);
+  if (!pack || !Number.isFinite(Number(pack.price)) || Number(pack.price) <= 0) {
+    return null;
+  }
+  return Number(pack.price);
+}
+
 function buildMsg(u, items, note) {
   const lines = [
     'PRASANN — Order Enquiry',
@@ -192,65 +205,57 @@ function buildMsg(u, items, note) {
 
   let total = 0;
   let allPriced = true;
+  let includedItems = 0;
 
   items.forEach(item => {
-    const p = PRODUCTS.find(
-      x => String(x.id) === String(item.id)
-    );
-
+    const p = PRODUCTS.find(x => String(x.id) === String(item.id));
     if (!p || !lineOk(item)) return;
 
-    const pack = (p.packOptions || []).find(
-      x => Number(x.grams) === Number(item.g)
-    );
+    const unit = packUnitPrice(p, item.g);
+    const quantity = Math.max(1, Number(item.q) || 1);
+    includedItems++;
 
-    let unit = null;
-
-    if (pack && Number(pack.price) > 0) {
-      unit = Number(pack.price);
-    } else if (Number(p.pricePerKg) > 0) {
-      unit = packPrice(p.pricePerKg, Number(item.g));
-    }
-
-    if (unit !== null && Number.isFinite(unit) && unit > 0) {
-      const lineTotal = unit * Number(item.q);
+    if (unit !== null) {
+      const lineTotal = unit * quantity;
       total += lineTotal;
 
       lines.push(
         '- ' + getProductName(p) +
         ' | ' + packLabel(item.g) +
-        ' | Qty ' + item.q +
+        ' | Qty ' + quantity +
         ' | ' + money(unit) + ' each' +
         ' | ' + money(lineTotal)
       );
     } else {
       allPriced = false;
-
       lines.push(
         '- ' + getProductName(p) +
         ' | ' + packLabel(item.g) +
-        ' | Qty ' + item.q +
+        ' | Qty ' + quantity +
         ' | Price not confirmed'
       );
     }
   });
 
+  if (!includedItems) {
+    lines.push('- No currently available items');
+    allPriced = false;
+  }
+
   lines.push(
     '',
-    'Order Total: ' +
-      (allPriced ? money(total) : 'Price not confirmed'),
+    'Order Total: ' + (allPriced ? money(total) : 'Price not confirmed'),
     'Customer Note: ' + (note || '-'),
     '',
     'Please confirm product prices, availability and delivery details.'
   );
 
   return lines.join('\n');
-       }
+}
 
-
-function waUrl(msg) {
+function waUrl(message) {
   const number = String(CFG.WHATSAPP || '918448047203').replace(/\D/g, '');
-  return 'https://wa.me/' + number + '?text=' + encodeURIComponent(msg);
+  return 'https://wa.me/' + number + '?text=' + encodeURIComponent(message);
 }
 
 /* Supabase helpers */
@@ -294,117 +299,115 @@ function normalizeCategory(value) {
   const v = String(value || '').toLowerCase().trim();
 
   const aliases = {
-    snack:'snacks',
-    snacks:'snacks',
-    kaju:'snacks',
-    mathri:'snacks',
-    indian:'indian',
-    'indian meals':'indian',
-    south:'south',
-    'south indian':'south',
-    'south indian meals':'south',
-    fast:'fast',
-    'fast food':'fast',
-    sweets:'sweets',
-    sweet:'sweets',
-    mithai:'sweets'
+    snack:'snacks', snacks:'snacks', kaju:'snacks', mathri:'snacks',
+    indian:'indian', 'indian meals':'indian',
+    south:'south', 'south indian':'south', 'south indian meals':'south',
+    fast:'fast', 'fast food':'fast',
+    sweets:'sweets', sweet:'sweets', mithai:'sweets'
   };
 
   return aliases[v] || (CATS.includes(v) ? v : 'snacks');
 }
 
+/* हर product के लिए Supabase में सेव सभी pack options पढ़ें। */
 function normalizePacks(raw) {
-  if (!raw) return DEFAULT_PACKS.map(g => ({ grams:g, price:null }));
+  if (raw === null || raw === undefined || raw === '') return [];
 
   let value = raw;
 
   if (typeof value === 'string') {
-    try { value = JSON.parse(value); }
-    catch (_) { return DEFAULT_PACKS.map(g => ({ grams:g, price:null })); }
+    try {
+      value = JSON.parse(value);
+    } catch (_) {
+      return [];
+    }
   }
 
   if (!Array.isArray(value)) {
     if (typeof value === 'object') {
       value = Object.entries(value).map(([grams, price]) => ({
-        grams:Number(grams),
-        price:Number(price)
+        grams: Number(grams),
+        price: Number(price)
       }));
     } else {
-      return DEFAULT_PACKS.map(g => ({ grams:g, price:null }));
+      return [];
     }
   }
 
-  const result = value.map(item => {
-    if (typeof item === 'number') {
-      return { grams:item, price:null };
-    }
+  const result = [];
+  const seen = new Set();
+
+  value.forEach(item => {
+    if (!item || typeof item !== 'object') return;
 
     const grams = Number(
       item.grams ?? item.g ?? item.weight ?? item.size ??
       item.pack_grams ?? item.quantity ?? item.value
     );
 
-    const priceRaw =
+    const rawPrice =
       item.price ?? item.amount ?? item.pack_price ??
       item.selling_price ?? item.sellingPrice;
 
-    const price = priceRaw === undefined || priceRaw === null || priceRaw === ''
+    const price = rawPrice === null || rawPrice === undefined || rawPrice === ''
       ? null
-      : Number(priceRaw);
+      : Number(rawPrice);
 
-    return {
+    if (!Number.isFinite(grams) || grams <= 0 || seen.has(grams)) return;
+
+    seen.add(grams);
+
+    result.push({
       grams,
-      price:Number.isFinite(price) && price > 0 ? price : null
-    };
-  }).filter(item => Number.isFinite(item.grams) && item.grams > 0);
+      price: Number.isFinite(price) && price > 0 ? price : null
+    });
+  });
 
-  return result.length ? result : DEFAULT_PACKS.map(g => ({ grams:g, price:null }));
+  return result.sort((a, b) => a.grams - b.grams);
 }
 
 function normalizeProduct(row) {
   const id = String(row.id ?? row.slug ?? row.product_id ?? '');
-  const priceValue = row.price_per_kg ?? row.pricePerKg ?? row.price_per_kg_inr;
-  const price = priceValue === null || priceValue === undefined || priceValue === ''
-    ? null
-    : Number(priceValue);
-
- 
   const status = String(row.status ?? 'active').toLowerCase();
-const available = row.available !== false &&
+
+  const available =
+    row.available !== false &&
     row.is_available !== false &&
-    ['available','active','coming_soon'].includes(status);
-  
+    ['available','active'].includes(status);
+
   return {
     id,
-    name:row.name || row.title || id,
-    name_hi:row.name_hi || row.title_hi || '',
-    description:row.description || row.details || '',
-    description_hi:row.description_hi || '',
-    image_url:row.image_url || row.photo_url || row.image || '',
-    video_url:row.video_url || '',
-    cat:normalizeCategory(row.category || row.cat),
-    pricePerKg:Number.isFinite(price) && price > 0 ? price : null,
-    packOptions:normalizePacks(row.pack_options || row.packs),
+    name: row.name || row.title || id,
+    name_hi: row.name_hi || row.title_hi || '',
+    description: row.description || row.details || '',
+    description_hi: row.description_hi || '',
+    image_url: row.image_url || row.photo_url || row.image || '',
+    video_url: row.video_url || '',
+    cat: normalizeCategory(row.category || row.cat),
+    packOptions: normalizePacks(row.pack_options || row.packs),
     available
   };
 }
 
 async function loadProducts() {
   try {
-    const rows = await supabaseGet(
-      'products',
-      'select=*&order=created_at.desc'
-    );
+    const rows = await supabaseGet('products', 'select=*&order=created_at.desc');
 
-    PRODUCTS = rows
-      .map(normalizeProduct)
-      .filter(p => p.id && p.available);
+    PRODUCTS = rows.map(normalizeProduct).filter(p => p.id && p.available);
+
+    // Cart में पुराने हटाए गए products और invalid packs को न रखें।
+    const validCart = cart.filter(item => {
+      const p = PRODUCTS.find(x => String(x.id) === String(item.id));
+      return p && findPack(p, item.g);
+    });
+
+    if (validCart.length !== cart.length) {
+      cart = validCart;
+      saveStore(STORE.cart, cart);
+    }
 
     render();
 
-    if (!PRODUCTS.length) {
-      console.info('PRASANN: Supabase returned no visible products.');
-    }
   } catch (error) {
     console.error('PRASANN product loading error:', error);
 
@@ -423,21 +426,15 @@ async function loadProducts() {
 
 async function loadStories() {
   try {
-    const rows = await supabaseGet(
-      'stories',
-      'select=*&order=created_at.desc'
-    );
-
+    const rows = await supabaseGet('stories', 'select=*&order=created_at.desc');
     const now = Date.now();
 
     STORIES = rows.filter(story => {
       if (!story.image_url) return false;
-
       if (story.expires_at) {
         const expiry = new Date(story.expires_at).getTime();
         if (Number.isFinite(expiry) && expiry <= now) return false;
       }
-
       return true;
     });
 
@@ -450,7 +447,6 @@ async function loadStories() {
 
 function ensureStoriesSection() {
   let section = $('#storiesSection');
-
   if (section) return section;
 
   const shop = $('#shopSection');
@@ -472,9 +468,7 @@ function renderStoriesError() {
   if (!section) return;
 
   const list = $('#storiesList');
-  if (list) {
-    list.innerHTML = '<p>' + escapeHTML(t('noStories')) + '</p>';
-  }
+  if (list) list.innerHTML = '<p>' + escapeHTML(t('noStories')) + '</p>';
 }
 
 function renderStories() {
@@ -546,7 +540,7 @@ function renderProducts() {
     const saved = wishlist.some(id => String(id) === String(p.id));
     const name = getProductName(p);
     const description = getProductDescription(p);
-    const packs = p.packOptions || DEFAULT_PACKS.map(g => ({ grams:g, price:null }));
+    const packs = p.packOptions || [];
 
     const image = p.image_url
       ? `<img src="${escapeHTML(p.image_url)}"
@@ -559,27 +553,32 @@ function renderProducts() {
       ? `<p><a href="${escapeHTML(p.video_url)}" target="_blank" rel="noopener noreferrer">▶ Watch product video</a></p>`
       : '';
 
+    const packControl = packs.length
+      ? `<label>${escapeHTML(t('pack'))}
+          <select id="pk-${escapeHTML(p.id)}">
+            ${packs.map(pack => {
+              const price = pack.price;
+              const label = packLabel(pack.grams);
+              const priceText = price !== null ? ' — ' + money(price) : '';
+
+              return `<option value="${pack.grams}" data-pack-price="${price ?? ''}">
+                ${escapeHTML(label + priceText)}
+              </option>`;
+            }).join('')}
+          </select>
+        </label>`
+      : `<p>${escapeHTML(t('unavail'))}</p>`;
+
+    const hasPricedPack = packs.some(pack => pack.price !== null);
+
     return `<article class="card">
       ${image}
       <h3>${escapeHTML(name)}</h3>
       <p>${escapeHTML(description)}</p>
       ${video}
-      <label>${escapeHTML(t('pack'))}
-        <select id="pk-${escapeHTML(p.id)}">
-          ${packs.map(pack => {
-            const price = pack.price;
-            const label = packLabel(pack.grams);
-            const priceText = price > 0 ? ' — ' + money(price) :
-              (p.pricePerKg > 0 ? ' — ' + money(packPrice(p.pricePerKg, pack.grams)) : '');
-
-            return `<option value="${pack.grams}" data-pack-price="${price || ''}">
-              ${escapeHTML(label + priceText)}
-            </option>`;
-          }).join('')}
-        </select>
-      </label>
-    
-      <button type="button" class="btn" data-add="${escapeHTML(p.id)}">
+      ${packControl}
+      <button type="button" class="btn" data-add="${escapeHTML(p.id)}"
+        ${!packs.length ? 'disabled' : ''}>
         ${escapeHTML(t('add'))}
       </button>
       <button type="button" class="wish-btn ${saved ? 'saved' : ''}"
@@ -602,7 +601,6 @@ function renderCart() {
 
   if (!cart.length) {
     box.innerHTML = `<p>${escapeHTML(t('empty'))}</p>`;
-
     totalBox.textContent = '';
     waButton.disabled = true;
     return;
@@ -615,32 +613,24 @@ function renderCart() {
     const p = PRODUCTS.find(x => String(x.id) === String(item.id));
     if (!p) return '';
 
-const name = getProductName(p);
-const pack = (p.packOptions || []).find(
-  x => Number(x.grams) === Number(item.g)
-);
+    const pack = findPack(p, item.g);
+    if (!pack) return '';
 
-let unit = null;
+    const unit = packUnitPrice(p, item.g);
+    const quantity = Math.max(1, Number(item.q) || 1);
+    const priced = unit !== null;
+    let detail = t('priceWait');
 
-if (pack && Number(pack.price) > 0) {
-  unit = Number(pack.price);
-} else if (Number(p.pricePerKg) > 0) {
-  unit = packPrice(Number(p.pricePerKg), Number(item.g));
-}
-
-const priced = unit !== null && Number.isFinite(unit) && unit > 0;
-let detail = t('priceWait');
-   
     if (priced) {
-  const lineTotal = unit * Number(item.q);
-  total += lineTotal;
-  detail = `${money(unit)} × ${item.q} = ${money(lineTotal)}`;
-} else {
-  allPriced = false;
+      const lineTotal = unit * quantity;
+      total += lineTotal;
+      detail = `${money(unit)} × ${quantity} = ${money(lineTotal)}`;
+    } else {
+      allPriced = false;
     }
 
     return `<div class="line">
-      <div><b>${escapeHTML(name)}</b><br>
+      <div><b>${escapeHTML(getProductName(p))}</b><br>
       ${escapeHTML(packLabel(item.g))} · ${escapeHTML(detail)}</div>
       <div>
         <button type="button" class="sm" data-qty="${index}" data-delta="-1">−</button>
@@ -651,13 +641,13 @@ let detail = t('priceWait');
   }).join('');
 
   totalBox.textContent = allPriced
-  ? t('total') + ': ' + money(total)
-  : t('priceWait');
-waButton.disabled = !user || !cart.length;
+    ? t('total') + ': ' + money(total)
+    : t('priceWait');
+
+  waButton.disabled = !user || !cart.length;
 }
 
 function renderWishlist() {
-
   const box = $('#wishlistItems');
   if (!box) return;
 
@@ -730,6 +720,9 @@ function addToCart(id, grams) {
   const product = PRODUCTS.find(p => String(p.id) === String(id));
   if (!product || !product.available) return;
 
+  const pack = findPack(product, grams);
+  if (!pack) return;
+
   const found = cart.find(i =>
     String(i.id) === String(id) && Number(i.g) === Number(grams)
   );
@@ -797,7 +790,7 @@ function switchLang() {
 
 if (typeof module !== 'undefined') {
   module.exports = {
-    packPrice, validate, buildMsg, waUrl,
+    validate, buildMsg, waUrl,
     get PRODUCTS() { return PRODUCTS; }
   };
 }
@@ -807,6 +800,7 @@ if (typeof document !== 'undefined') (function () {
 
   document.addEventListener('click', event => {
     const target = event.target;
+    if (!(target instanceof Element)) return;
 
     const storyButton = target.closest('[data-story]');
     if (storyButton) {
@@ -834,7 +828,6 @@ if (typeof document !== 'undefined') (function () {
       } else if (dest === 'account') {
         showPanel('accountPanel');
       }
-
       return;
     }
 
@@ -896,10 +889,17 @@ if (typeof document !== 'undefined') (function () {
     const wishAdd = target.closest('[data-wish-addcart]');
     if (wishAdd) {
       const id = wishAdd.dataset.wishAddcart;
-      const select = $('#pk-' + CSS.escape(id));
-      addToCart(id, select ? Number(select.value) : DEFAULT_PACKS[0]);
+      const p = PRODUCTS.find(x => String(x.id) === String(id));
+      const firstPack = p && p.packOptions && p.packOptions[0];
+
+      if (firstPack) addToCart(id, firstPack.grams);
+      else msgNoPack();
     }
   });
+
+  function msgNoPack() {
+    alert(t('unavail'));
+  }
 
   if ($('#cartBtn')) $('#cartBtn').onclick = () => showPanel('cartPanel');
   if ($('#langBtn')) $('#langBtn').onclick = switchLang;
@@ -916,11 +916,10 @@ if (typeof document !== 'undefined') (function () {
 
   if ($('#wa')) {
     $('#wa').onclick = () => {
-     if (!user || !cart.length) {
-  alert('Please register and add products to your cart.');
-  return;
-     }
-      
+      if (!user || !cart.length) {
+        alert('Please register and add products to your cart.');
+        return;
+      }
 
       window.open(
         waUrl(buildMsg(user, cart, $('#note') ? $('#note').value.trim() : '')),
@@ -1058,7 +1057,6 @@ if (typeof document !== 'undefined') (function () {
 
   applyLang();
 
-  // Admin Panel में सेव किए गए उत्पाद और स्टोरीज़ लोड करें।
   if (configured) {
     loadProducts();
     loadStories();
