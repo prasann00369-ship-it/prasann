@@ -178,37 +178,75 @@ function getProductDescription(product) {
     ? (product.description_hi || product.description || '')
     : (product.description || product.description_hi || '');
 }
-
 function buildMsg(u, items, note) {
   const lines = [
-    'PRASANN — Order Enquiry', '',
+    'PRASANN — Order Enquiry',
+    '',
     'Customer Name: ' + u.name,
     'Mobile: ' + u.mobile,
     'Email: ' + (u.email || '-'),
-    'Delivery Address: ' + u.addr, '', 'Items:'
+    'Delivery Address: ' + u.addr,
+    '',
+    'Items:'
   ];
 
   let total = 0;
+  let allPriced = true;
 
   items.forEach(item => {
-    const p = PRODUCTS.find(x => String(x.id) === String(item.id));
+    const p = PRODUCTS.find(
+      x => String(x.id) === String(item.id)
+    );
+
     if (!p || !lineOk(item)) return;
 
-    const unit = packPrice(p.pricePerKg, item.g);
-    const lineTotal = unit * item.q;
-    total += lineTotal;
+    const pack = (p.packOptions || []).find(
+      x => Number(x.grams) === Number(item.g)
+    );
 
-    lines.push('- ' + getProductName(p) + ' | ' + packLabel(item.g) +
-      ' | Qty ' + item.q + ' | ' + money(unit) +
-      ' each | ' + money(lineTotal));
+    let unit = null;
+
+    if (pack && Number(pack.price) > 0) {
+      unit = Number(pack.price);
+    } else if (Number(p.pricePerKg) > 0) {
+      unit = packPrice(p.pricePerKg, Number(item.g));
+    }
+
+    if (unit !== null && Number.isFinite(unit) && unit > 0) {
+      const lineTotal = unit * Number(item.q);
+      total += lineTotal;
+
+      lines.push(
+        '- ' + getProductName(p) +
+        ' | ' + packLabel(item.g) +
+        ' | Qty ' + item.q +
+        ' | ' + money(unit) + ' each' +
+        ' | ' + money(lineTotal)
+      );
+    } else {
+      allPriced = false;
+
+      lines.push(
+        '- ' + getProductName(p) +
+        ' | ' + packLabel(item.g) +
+        ' | Qty ' + item.q +
+        ' | Price not confirmed'
+      );
+    }
   });
 
-  lines.push('', 'Order Total: ' + money(total),
+  lines.push(
+    '',
+    'Order Total: ' +
+      (allPriced ? money(total) : 'Price not confirmed'),
     'Customer Note: ' + (note || '-'),
-    '', 'Please confirm product availability and delivery details.');
+    '',
+    'Please confirm product prices, availability and delivery details.'
+  );
 
   return lines.join('\n');
-}
+       }
+
 
 function waUrl(msg) {
   const number = String(CFG.WHATSAPP || '918448047203').replace(/\D/g, '');
