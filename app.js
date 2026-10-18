@@ -602,6 +602,7 @@ function renderCart() {
 
   if (!cart.length) {
     box.innerHTML = `<p>${escapeHTML(t('empty'))}</p>`;
+
     totalBox.textContent = '';
     waButton.disabled = true;
     return;
@@ -650,12 +651,10 @@ let detail = t('priceWait');
   }).join('');
 
   totalBox.textContent = allPriced
-    ? t('total') + ': ' + money(total)
-    : t('checkoutBlocked');
+  ? t('total') + ': ' + money(total)
+  : t('priceWait');
 
-  waButton.disabled = !allPriced || !user || !cart.length;
-}
-
+waButton.disabled = !user || !cart.length;
 function renderWishlist() {
   const box = $('#wishlistItems');
   if (!box) return;
