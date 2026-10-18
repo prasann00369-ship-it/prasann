@@ -62,7 +62,8 @@ button.s{background:var(--g)}button.d{background:var(--r)}button.l{background:tr
 <input id="v3" type="number" min="0" step="0.01" placeholder="जैसे 349">
  <div class="pp" id="pv"></div>
 <label>Status</label><select id="ps"><option value="available">Available</option><option value="coming_soon">Coming Soon</option></select>
-<label>Product Photo (optional)</label><input id="pf" type="file" accept="image/*">
+ <label>Product Photo (अनिवार्य)</label>
+<input id="pf" type="file" accept="image/*">
  <button class="s" onclick="alert('Save button working'); saveP()">Save</button>
  <button onclick="resetP()" style="background:#999">Clear</button></div>
  <div class="card"><h2>सभी Products</h2><div id="plist"></div></div></div>
@@ -112,11 +113,15 @@ async function loadP(){
  <button class="s" onclick="editP('${p.id}')">Edit</button><button class="d" onclick="delP('${p.id}')">Delete</button></div>`).join('')||'कोई product नहीं'}
 function resetP(){editId=editImg=null;['pn','ph','pp','pf'].forEach(i=>$(i).value='');$('pc').value='Snacks';$('ps').value='available';$('ptitle').textContent='नया Product';prev()}
 function editP(id){const p=prods.find(x=>x.id==id);editId=id;editImg=p.image_url;$('pn').value=p.name;$('ph').value=p.name_hi||'';$('pc').value=p.category;$('pp').value=p.price_per_kg??'';$('ps').value=p.status;$('ptitle').textContent='Edit: '+p.name;prev();scrollTo(0,0)}
-async function saveP(){
+
+ async function saveP(){
   try {
     const name = $('pn').value.trim();
-    if (!name) return msg('Name जरूरी है', 1);
-
+if (!name) return msg('Product का नाम जरूरी है', 1);
+const f = $('pf').files[0];
+if (!f && !editImg) {
+  return msg('पहले Product की फोटो अपलोड करें', 1);
+ }
     const packs = [];
     for (let i = 1; i <= 3; i++) {
       const grams = $('g' + i).value;
@@ -136,7 +141,6 @@ async function saveP(){
     }
 
     let img = editImg;
-    const f = $('pf').files[0];
     if (f) img = await up(f);
 
     const video = $('pvideo').value.trim();
