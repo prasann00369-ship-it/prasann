@@ -629,17 +629,13 @@ if (pack && Number(pack.price) > 0) {
 
 const priced = unit !== null && Number.isFinite(unit) && unit > 0;
 let detail = t('priceWait');
-    
+   
     if (priced) {
-      const unit = pack && pack.price > 0
-        ? pack.price
-        : packPrice(p.pricePerKg, item.g);
-
-      const lineTotal = unit * item.q;
-      total += lineTotal;
-      detail = `${money(unit)} × ${item.q} = ${money(lineTotal)}`;
-    } else {
-      allPriced = false;
+  const lineTotal = unit * Number(item.q);
+  total += lineTotal;
+  detail = `${money(unit)} × ${item.q} = ${money(lineTotal)}`;
+} else {
+  allPriced = false;
     }
 
     return `<div class="line">
