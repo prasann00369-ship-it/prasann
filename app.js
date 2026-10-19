@@ -99,7 +99,7 @@ const CATN = {
 };
 
 let lang = 'en';
-
+let selectedCategory = null;
 const STORE = {
   user:'prasann_profile_v1',
   cart:'prasann_cart_v1',
@@ -670,30 +670,46 @@ function renderCategories() {
 
   box.innerHTML = CATS.map(c => {
     const has = PRODUCTS.some(p => p.cat === c);
-    return `<div class="cat"><b>${escapeHTML(CATN[lang][c])}</b>${
-      has ? '' : `<span class="soon">${escapeHTML(t('soon'))}</span>`
-    }</div>`;
+    const active = selectedCategory === c;
+
+    return `
+      <button
+        type="button"
+        class="cat"
+        data-category="${c}"
+        aria-pressed="${active}"
+        style="
+          cursor:pointer;
+          width:100%;
+          font:inherit;
+          color:var(--tx);
+          border:2px solid ${active ? 'var(--o)' : '#e3dcc7'};
+          background:${active ? '#fff0e3' : '#fff'};
+          box-shadow:${active ? '0 0 0 2px #ff6b0a33' : 'none'};
+        "
+      >
+        <b>${escapeHTML(CATN[lang][c])}</b>
+        ${has ? '' : `<span class="soon">No Items</span>`}
+      </button>
+    `;
   }).join('');
 }
 
-function renderProducts() {
-  const box = $('#prods');
-  if (!box) return;
+const list = PRODUCTS.filter(p => {
+  const text = [
+    getProductName(p),
+    getProductDescription(p),
+    p.cat,
+    CATN[lang][p.cat] || ''
+  ].join(' ').toLowerCase();
 
-  const search = $('#q');
-  const q = search ? search.value.trim().toLowerCase() : '';
+  const matchesCategory =
+    selectedCategory === null || p.cat === selectedCategory;
 
-  const list = PRODUCTS.filter(p => {
-    const text = [
-      getProductName(p),
-      getProductDescription(p),
-      p.cat,
-      CATN[lang][p.cat] || ''
-    ].join(' ').toLowerCase();
+  const matchesSearch = !q || text.includes(q);
 
-    return !q || text.includes(q);
-  });
-
+  return matchesCategory && matchesSearch;
+});
   if (!list.length) {
     box.innerHTML = `<p>${escapeHTML(t('nores'))}</p>`;
     return;
@@ -969,7 +985,27 @@ if (typeof document !== 'undefined') (function () {
   document.addEventListener('click', event => {
     const target = event.target;
     if (!(target instanceof Element)) return;
+const categoryButton = target.closest('[data-category]');
 
+if (categoryButton) {
+  const category = categoryButton.dataset.category;
+
+  selectedCategory =
+    selectedCategory === category ? null : category;
+
+  renderCategories();
+  renderProducts();
+
+  const productSection = $('#prods');
+  if (productSection) {
+    productSection.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  }
+
+  return;
+        }
     const nav = target.closest('[data-nav]');
     if (nav) {
       const dest = nav.dataset.nav;
