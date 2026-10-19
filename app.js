@@ -493,7 +493,7 @@ const cover = story.cover_url || story.image_url || '';
           data-story="${index}" aria-label="${escapeHTML(caption || t('stories'))}">
           <img src="${escapeHTML(cover)}"
             alt="${escapeHTML(caption || 'PRASANN story')}"
-            loading="lazy"
+            loading="lazy">
         </button>
         ${caption ? '<p>' + escapeHTML(caption) + '</p>' : ''}
       </article>`;
@@ -973,22 +973,44 @@ if (typeof document !== 'undefined') (function () {
     const nav = target.closest('[data-nav]');
     if (nav) {
       const dest = nav.dataset.nav;
+if (dest === 'home') {
+  closePanels();
 
-      if (dest === 'home') {
-        closePanels();
-        if ($('#home')) $('#home').scrollIntoView({behavior:'smooth'});
-      } else if (dest === 'shop') {
-        closePanels();
-        if ($('#shopSection')) $('#shopSection').scrollIntoView({behavior:'smooth'});
-      } else if (dest === 'cart') {
-        showPanel('cartPanel');
-      } else if (dest === 'wishlist') {
-        showPanel('wishlistPanel');
-      } else if (dest === 'account') {
-        showPanel('accountPanel');
-      }
-      return;
-    }
+  const homePage = $('#homePage');
+  const shopPage = $('#shopPage');
+
+  if (homePage) homePage.hidden = false;
+  if (shopPage) shopPage.hidden = true;
+
+  document.querySelectorAll('[data-nav]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.nav === 'home');
+  });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+} else if (dest === 'shop') {
+  closePanels();
+
+  const homePage = $('#homePage');
+  const shopPage = $('#shopPage');
+
+  if (homePage) homePage.hidden = true;
+  if (shopPage) shopPage.hidden = false;
+
+  document.querySelectorAll('[data-nav]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.nav === 'shop');
+  });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+} else if (dest === 'cart') {
+  showPanel('cartPanel');
+} else if (dest === 'wishlist') {
+  showPanel('wishlistPanel');
+} else if (dest === 'account') {
+  showPanel('accountPanel');
+}
+return; 
 
     if (target.closest('[data-close]')) {
       closePanels();
