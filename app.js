@@ -694,22 +694,59 @@ function renderCategories() {
     `;
   }).join('');
 }
+function renderCategories() {
+  const box = $('#cats');
+  if (!box) return;
 
-const list = PRODUCTS.filter(p => {
-  const text = [
-    getProductName(p),
-    getProductDescription(p),
-    p.cat,
-    CATN[lang][p.cat] || ''
-  ].join(' ').toLowerCase();
+  box.innerHTML = CATS.map(c => {
+    const has = PRODUCTS.some(p => p.cat === c);
+    const active = selectedCategory === c;
 
-  const matchesCategory =
-    selectedCategory === null || p.cat === selectedCategory;
+    return `
+      <button
+        type="button"
+        class="cat"
+        data-category="${c}"
+        aria-pressed="${active}"
+        style="
+          cursor:pointer;
+          width:100%;
+          font:inherit;
+          color:var(--tx);
+          border:2px solid ${active ? 'var(--o)' : '#e3dcc7'};
+          background:${active ? '#fff0e3' : '#fff'};
+          box-shadow:${active ? '0 0 0 2px #ff6b0a33' : 'none'};
+        "
+      >
+        <b>${escapeHTML(CATN[lang][c])}</b>
+        ${has ? '' : `<span class="soon">No Items</span>`}
+      </button>
+    `;
+  }).join('');
+}
 
-  const matchesSearch = !q || text.includes(q);
+function renderProducts() {
+  const box = $('#prods');
+  if (!box) return;
 
-  return matchesCategory && matchesSearch;
-});
+  const q = ($('#q')?.value || '').trim().toLowerCase();
+
+  const list = PRODUCTS.filter(p => {
+    const text = [
+      getProductName(p),
+      getProductDescription(p),
+      p.cat,
+      CATN[lang][p.cat] || ''
+    ].join(' ').toLowerCase();
+
+    const matchesCategory =
+      selectedCategory === null || p.cat === selectedCategory;
+
+    const matchesSearch = !q || text.includes(q);
+
+    return matchesCategory && matchesSearch;
+  });
+
   if (!list.length) {
     box.innerHTML = `<p>${escapeHTML(t('nores'))}</p>`;
     return;
@@ -719,59 +756,88 @@ const list = PRODUCTS.filter(p => {
     const saved = wishlist.some(id => String(id) === String(p.id));
     const name = getProductName(p);
     const description = getProductDescription(p);
-    const descId = 'desc-' + String(p.id).replace(/[^a-zA-Z0-9_-]/g, '');
     const packs = p.packOptions || [];
+
     const image = p.image_url
-      ? `<img src="${escapeHTML(p.image_url)}"
+      ? `<img
+          src="${escapeHTML(p.image_url)}"
           alt="${escapeHTML(name)}"
           loading="lazy"
-          style="width:100%;height:190px;object-fit:cover;border-radius:12px">`
+          style="width:100%;height:190px;object-fit:cover;border-radius:12px"
+        >`
       : `<div class="ph">${escapeHTML(t('pphc'))}</div>`;
 
     const video = p.video_url
-      ? `<p><a href="${escapeHTML(p.video_url)}" target="_blank" rel="noopener noreferrer">▶ Watch product video</a></p>`
+      ? `<p>
+          <a href="${escapeHTML(p.video_url)}"
+             target="_blank"
+             rel="noopener noreferrer">
+            ▶ Watch product video
+          </a>
+        </p>`
       : '';
 
     const packControl = packs.length
-      ? `<label>${escapeHTML(t('pack'))}
+      ? `<label>
+          ${escapeHTML(t('pack'))}
           <select id="pk-${escapeHTML(p.id)}">
             ${packs.map(pack => {
               const price = pack.price;
               const label = packLabel(pack.grams);
-              const priceText = price !== null ? ' — ' + money(price) : '';
+              const priceText =
+                price !== null ? ' — ' + money(price) : '';
 
-              return `<option value="${pack.grams}" data-pack-price="${price ?? ''}">
-                ${escapeHTML(label + priceText)}
-              </option>`;
+              return `
+                <option
+                  value="${pack.grams}"
+                  data-pack-price="${price ?? ''}"
+                >
+                  ${escapeHTML(label + priceText)}
+                </option>
+              `;
             }).join('')}
           </select>
         </label>`
       : `<p>${escapeHTML(t('unavail'))}</p>`;
 
-    const hasPricedPack = packs.some(pack => pack.price !== null);
+    return `
+      <article class="card">
+        ${image}
 
-    return `<article class="card">
-      ${image}
-      <h3>${escapeHTML(name)}</h3>
-      <details class="product-description">
-  <summary>
-    ${lang === 'hi' ? 'प्रोडक्ट का विवरण' : 'Product Description'}
-  </summary>
-  <p>${escapeHTML(description)}</p>
-</details>
-      ${video}
-      ${packControl}
-      <button type="button" class="btn" data-add="${escapeHTML(p.id)}"
-        ${!packs.length ? 'disabled' : ''}>
-        ${escapeHTML(t('add'))}
-      </button>
-      <button type="button" class="wish-btn ${saved ? 'saved' : ''}"
-        data-wish="${escapeHTML(p.id)}">
-        ${escapeHTML(saved ? t('removeWish') : t('addWish'))}
-      </button>
-    </article>`;
+        <h3>${escapeHTML(name)}</h3>
+
+        <details class="product-description">
+          <summary>
+            ${lang === 'hi' ? 'प्रोडक्ट का विवरण' : 'Product Description'}
+          </summary>
+          <p>${escapeHTML(description)}</p>
+        </details>
+
+        ${video}
+        ${packControl}
+
+        <button
+          type="button"
+          class="btn"
+          data-add="${escapeHTML(p.id)}"
+          ${!packs.length ? 'disabled' : ''}
+        >
+          ${escapeHTML(t('add'))}
+        </button>
+
+        <button
+          type="button"
+          class="wish-btn ${saved ? 'saved' : ''}"
+          data-wish="${escapeHTML(p.id)}"
+        >
+          ${escapeHTML(saved ? t('removeWish') : t('addWish'))}
+        </button>
+      </article>
+    `;
   }).join('');
 }
+
+    
 
 function renderCart() {
   const count = $('#cnt');
