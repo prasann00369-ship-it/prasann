@@ -694,36 +694,6 @@ function renderCategories() {
     `;
   }).join('');
 }
-function renderCategories() {
-  const box = $('#cats');
-  if (!box) return;
-
-  box.innerHTML = CATS.map(c => {
-    const has = PRODUCTS.some(p => p.cat === c);
-    const active = selectedCategory === c;
-
-    return `
-      <button
-        type="button"
-        class="cat"
-        data-category="${c}"
-        aria-pressed="${active}"
-        style="
-          cursor:pointer;
-          width:100%;
-          font:inherit;
-          color:var(--tx);
-          border:2px solid ${active ? 'var(--o)' : '#e3dcc7'};
-          background:${active ? '#fff0e3' : '#fff'};
-          box-shadow:${active ? '0 0 0 2px #ff6b0a33' : 'none'};
-        "
-      >
-        <b>${escapeHTML(CATN[lang][c])}</b>
-        ${has ? '' : `<span class="soon">No Items</span>`}
-      </button>
-    `;
-  }).join('');
-}
 
 function renderProducts() {
   const box = $('#prods');
