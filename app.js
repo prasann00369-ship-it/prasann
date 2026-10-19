@@ -484,9 +484,18 @@ function renderStories() {
   }
 
   list.innerHTML = STORIES.map((story, index) => {
-    const caption = story.caption || '';
     const image = story.image_url || '';
 const cover = story.cover_url || story.image_url || '';
+const isVideo = !!story.video_url;
+
+const preview = cover
+  ? `<img src="${escapeHTML(cover)}"
+       alt="${escapeHTML(caption || 'PRASANN content')}"
+       loading="lazy">`
+  : `<div class="story-video-cover">
+       <span>▶</span>
+       <small>Video</small>
+     </div>`;
     return `
       <article class="story-card">
         <button type="button" class="story-open"
