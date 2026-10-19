@@ -494,13 +494,176 @@ const cover = story.cover_url || story.image_url || '';
           <img src="${escapeHTML(cover)}"
             alt="${escapeHTML(caption || 'PRASANN story')}"
             loading="lazy"
-            style="width:100%;height:190px;object-fit:cover;border-radius:12px">
         </button>
         ${caption ? '<p>' + escapeHTML(caption) + '</p>' : ''}
       </article>`;
   }).join('');
 }
+let activeStoryIndex = 0;
+let storyTimer = null;
+let storyStartedAt = 0;
+let storyRemaining = 5000;
 
+function stopStoryTimer() {
+  if (storyTimer) clearTimeout(storyTimer);
+  storyTimer = null;
+}
+
+function closeStoryViewer() {
+  stopStoryTimer();
+
+  const viewer = document.getElementById('storyViewer');
+  const video = document.getElementById('storyVideo');
+
+  if (video) {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+  }
+
+  if (viewer) viewer.hidden = true;
+}
+
+function scheduleStoryNext(duration) {
+  stopStoryTimer();
+  storyRemaining = duration;
+  storyStartedAt = Date.now();
+
+  const fill = document.getElementById('storyProgressFill');
+  if (fill) fill.style.width = '0%';
+
+  storyTimer = setTimeout(() => {
+    showStory(activeStoryIndex + 1);
+  }, duration);
+}
+
+function showStory(index) {
+  if (!STORIES.length) return;
+
+  if (index < 0) index = STORIES.length - 1;
+
+  if (index >= STORIES.length) {
+    closeStoryViewer();
+    return;
+  }
+
+  stopStoryTimer();
+  activeStoryIndex = index;
+
+  const story = STORIES[index];
+  const viewer = document.getElementById('storyViewer');
+  const img = document.getElementById('storyImage');
+  const video = document.getElementById('storyVideo');
+  const caption = document.getElementById('storyCaption');
+  const mute = document.getElementById('storyMute');
+
+  if (!viewer || !img || !video || !caption || !mute) return;
+
+  viewer.hidden = false;
+  caption.textContent = story.caption || '';
+
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+
+  img.hidden = true;
+  video.hidden = true;
+
+  const videoUrl = story.video_url || '';
+  const imageUrl = story.image_url || '';
+
+  if (videoUrl) {
+    video.hidden = false;
+    video.src = videoUrl;
+    video.muted = true;
+    mute.textContent = '🔇';
+
+    video.onloadedmetadata = () => {
+      if (index !== activeStoryIndex) return;
+      video.play().catch(() => {});
+    };
+
+    video.onended = () => {
+      if (index === activeStoryIndex) showStory(index + 1);
+    };
+
+    video.onerror = () => {
+      if (index === activeStoryIndex) {
+        scheduleStoryNext(5000);
+      }
+    };
+
+    video.onplaying = () => {
+      if (index !== activeStoryIndex) return;
+      stopStoryTimer();
+
+      const fill = document.getElementById('storyProgressFill');
+      const duration = Number.isFinite(video.duration)
+        ? video.duration * 1000
+        : 15000;
+
+      if (fill) {
+        fill.style.transition = 'none';
+        fill.style.width = '0%';
+        requestAnimationFrame(() => {
+          fill.style.transition = `width ${duration}ms linear`;
+          fill.style.width = '100%';
+        });
+      }
+    };
+  } else if (imageUrl) {
+    img.hidden = false;
+    img.src = imageUrl;
+    scheduleStoryNext(5000);
+  } else {
+    showStory(index + 1);
+  }
+}
+
+document.addEventListener('click', event => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+
+  const storyButton = target.closest('[data-story]');
+
+  if (storyButton) {
+    showStory(Number(storyButton.dataset.story));
+    return;
+  }
+
+  if (target.closest('#storyClose')) {
+    closeStoryViewer();
+    return;
+  }
+
+  if (target.closest('#storyPrev')) {
+    showStory(activeStoryIndex - 1);
+    return;
+  }
+
+  if (target.closest('#storyNext')) {
+    showStory(activeStoryIndex + 1);
+    return;
+  }
+
+  if (target.closest('#storyMute')) {
+    const video = document.getElementById('storyVideo');
+    if (video && !video.hidden) {
+      video.muted = !video.muted;
+      target.closest('#storyMute').textContent =
+        video.muted ? '🔇' : '🔊';
+    }
+  }
+});
+
+document.addEventListener('keydown', event => {
+  const viewer = document.getElementById('storyViewer');
+  if (!viewer || viewer.hidden) return;
+
+  if (event.key === 'Escape') closeStoryViewer();
+  if (event.key === 'ArrowRight') showStory(activeStoryIndex + 1);
+  if (event.key === 'ArrowLeft') showStory(activeStoryIndex - 1);
+});
 function renderCategories() {
   const box = $('#cats');
   if (!box) return;
@@ -806,15 +969,6 @@ if (typeof document !== 'undefined') (function () {
   document.addEventListener('click', event => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-
-    const storyButton = target.closest('[data-story]');
-    if (storyButton) {
-      const story = STORIES[Number(storyButton.dataset.story)];
-      if (story && story.image_url) {
-        window.open(story.image_url, '_blank', 'noopener');
-      }
-      return;
-    }
 
     const nav = target.closest('[data-nav]');
     if (nav) {
