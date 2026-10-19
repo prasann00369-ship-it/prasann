@@ -430,7 +430,7 @@ async function loadStories() {
     const now = Date.now();
 
     STORIES = rows.filter(story => {
-      if (!story.image_url) return false;
+      if (!story.image_url && !story.video_url) return false;
       if (story.expires_at) {
         const expiry = new Date(story.expires_at).getTime();
         if (Number.isFinite(expiry) && expiry <= now) return false;
@@ -486,12 +486,12 @@ function renderStories() {
   list.innerHTML = STORIES.map((story, index) => {
     const caption = story.caption || '';
     const image = story.image_url || '';
-
+const cover = story.cover_url || story.image_url || '';
     return `
       <article class="story-card">
         <button type="button" class="story-open"
           data-story="${index}" aria-label="${escapeHTML(caption || t('stories'))}">
-          <img src="${escapeHTML(image)}"
+          <img src="${escapeHTML(cover)}"
             alt="${escapeHTML(caption || 'PRASANN story')}"
             loading="lazy"
             style="width:100%;height:190px;object-fit:cover;border-radius:12px">
