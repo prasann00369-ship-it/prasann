@@ -1010,8 +1010,8 @@ if (dest === 'home') {
 } else if (dest === 'account') {
   showPanel('accountPanel');
 }
-return; 
-
+return;
+} 
     if (target.closest('[data-close]')) {
       closePanels();
       return;
