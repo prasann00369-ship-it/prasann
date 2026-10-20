@@ -425,9 +425,7 @@ async function loadProducts() {
 }
 
 
-  stopStoryTimer();
-  storyRemaining = duration;
-  storyStartedAt = Date.now();
+  
 async function loadStories() {
   try {
     const rows = await supabaseGet('stories', 'select=*&order=created_at.desc');
