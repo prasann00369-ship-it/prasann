@@ -448,24 +448,27 @@ async function loadStories() {
     renderStoriesError();
   }
 }
-
 function ensureStoriesSection() {
   let section = $('#storiesSection');
-  if (section) return section;
+  const home = $('#homePage');
 
-  const shop = $('#shopSection');
-  if (!shop || !shop.parentNode) return null;
+  if (!home) return section;
 
-  section = document.createElement('section');
-  section.id = 'storiesSection';
-  section.className = 'section';
-  section.innerHTML =
-    '<h2>' + escapeHTML(t('stories')) + '</h2>' +
-    '<div id="storiesList" class="stories-list"></div>';
+  if (!section) {
+    section = document.createElement('section');
+    section.id = 'storiesSection';
+    section.className = 'section';
+    section.innerHTML =
+      '<h2>' + escapeHTML(t('stories')) + '</h2>' +
+      '<div id="storiesList" class="stories-list"></div>';
+  }
 
-  shop.parentNode.insertBefore(section, shop);
+  if (section.parentNode !== home) {
+    home.appendChild(section);
+  }
+
   return section;
-}
+    }
 
 function renderStories() {
   const section = ensureStoriesSection();
