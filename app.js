@@ -446,6 +446,7 @@ async function loadStories() {
     renderStoriesError();
   }
 }
+
 function ensureStoriesSection() {
   let section = $('#storiesSection');
   const home = $('#homePage');
@@ -466,7 +467,7 @@ function ensureStoriesSection() {
   }
 
   return section;
-    }
+}
 
 function renderStories() {
   const section = ensureStoriesSection();
@@ -489,7 +490,7 @@ function renderStories() {
     const preview = isVideo
       ? (image
           ? `<img src="${escapeHTML(image)}" alt="PRASANN video" loading="lazy">`
-          : `<div class="story-video-cover"><span>▶</span><small>Video</small></div>`)
+          : '<div class="story-video-cover"><span>▶</span><small>Video</small></div>')
       : `<img src="${escapeHTML(image)}" alt="${escapeHTML(caption || 'PRASANN')}" loading="lazy">`;
 
     return `
@@ -502,8 +503,7 @@ function renderStories() {
         ${caption ? '<p>' + escapeHTML(caption) + '</p>' : ''}
       </article>`;
   }).join('');
-      }
-
+  }
 function stopStoryTimer() {
   if (storyTimer) clearTimeout(storyTimer);
   storyTimer = null;
