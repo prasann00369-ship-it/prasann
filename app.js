@@ -424,6 +424,10 @@ async function loadProducts() {
   }
 }
 
+
+  stopStoryTimer();
+  storyRemaining = duration;
+  storyStartedAt = Date.now();
 async function loadStories() {
   try {
     const rows = await supabaseGet('stories', 'select=*&order=created_at.desc');
@@ -463,14 +467,6 @@ function ensureStoriesSection() {
   return section;
 }
 
-function renderStoriesError() {
-  const section = ensureStoriesSection();
-  if (!section) return;
-
-  const list = $('#storiesList');
-  if (list) list.innerHTML = '<p>' + escapeHTML(t('noStories')) + '</p>';
-}
-
 function renderStories() {
   const section = ensureStoriesSection();
   if (!section) return;
@@ -479,39 +475,33 @@ function renderStories() {
   if (!list) return;
 
   if (!STORIES.length) {
-    list.innerHTML = '<p>' + escapeHTML(t('noStories')) + '</p>';
+    list.innerHTML =
+      '<p>' + escapeHTML(t('noStories')) + '</p>';
     return;
   }
 
   list.innerHTML = STORIES.map((story, index) => {
-    const image = story.image_url || '';
-const cover = story.cover_url || story.image_url || '';
-const isVideo = !!story.video_url;
+    const caption = story.caption || '';
+    const image = story.cover_url || story.image_url || '';
+    const isVideo = !!story.video_url;
 
-const preview = cover
-  ? `<img src="${escapeHTML(cover)}"
-       alt="${escapeHTML(caption || 'PRASANN content')}"
-       loading="lazy">`
-  : `<div class="story-video-cover">
-       <span>▶</span>
-       <small>Video</small>
-     </div>`;
+    const preview = isVideo
+      ? (image
+          ? `<img src="${escapeHTML(image)}" alt="PRASANN video" loading="lazy">`
+          : `<div class="story-video-cover"><span>▶</span><small>Video</small></div>`)
+      : `<img src="${escapeHTML(image)}" alt="${escapeHTML(caption || 'PRASANN')}" loading="lazy">`;
+
     return `
       <article class="story-card">
         <button type="button" class="story-open"
-          data-story="${index}" aria-label="${escapeHTML(caption || t('stories'))}">
-          <img src="${escapeHTML(cover)}"
-            alt="${escapeHTML(caption || 'PRASANN story')}"
-            loading="lazy">
+          data-story="${index}"
+          aria-label="${escapeHTML(caption || 'PRASANN content')}">
+          ${preview}
         </button>
         ${caption ? '<p>' + escapeHTML(caption) + '</p>' : ''}
       </article>`;
   }).join('');
-}
-let activeStoryIndex = 0;
-let storyTimer = null;
-let storyStartedAt = 0;
-let storyRemaining = 5000;
+      }
 
 function stopStoryTimer() {
   if (storyTimer) clearTimeout(storyTimer);
@@ -534,10 +524,6 @@ function closeStoryViewer() {
 }
 
 function scheduleStoryNext(duration) {
-  stopStoryTimer();
-  storyRemaining = duration;
-  storyStartedAt = Date.now();
-
   const fill = document.getElementById('storyProgressFill');
   if (fill) fill.style.width = '0%';
 
