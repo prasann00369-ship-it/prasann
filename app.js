@@ -473,37 +473,71 @@ function renderStories() {
   const section = ensureStoriesSection();
   if (!section) return;
 
-  const list = $('#storiesList');
+  const list = document.getElementById('storiesList');
   if (!list) return;
 
+  // Stories title ko social feed title se badlein
+  const heading = section.querySelector('h2');
+  if (heading) heading.textContent = lang === 'hi'
+    ? 'PRASANN पोस्ट और वीडियो'
+    : 'PRASANN Posts & Videos';
+
+  section.classList.add('social-feed');
+
   if (!STORIES.length) {
-    list.innerHTML =
-      '<p>' + escapeHTML(t('noStories')) + '</p>';
+    list.innerHTML = `<p>${escapeHTML(
+      lang === 'hi'
+        ? 'अभी कोई पोस्ट या वीडियो उपलब्ध नहीं है।'
+        : 'No posts or videos available yet.'
+    )}</p>`;
     return;
   }
 
-  list.innerHTML = STORIES.map((story, index) => {
-    const caption = story.caption || '';
-    const image = story.cover_url || story.image_url || '';
-    const isVideo = !!story.video_url;
+  list.innerHTML = STORIES.map((post) => {
+    const caption = post.caption || '';
+    const image = post.cover_url || post.image_url || '';
+    const videoUrl = post.video_url || '';
 
-    const preview = isVideo
-      ? (image
-          ? `<img src="${escapeHTML(image)}" alt="PRASANN video" loading="lazy">`
-          : '<div class="story-video-cover"><span>▶</span><small>Video</small></div>')
-      : `<img src="${escapeHTML(image)}" alt="${escapeHTML(caption || 'PRASANN')}" loading="lazy">`;
+    let media = '';
+
+    if (videoUrl) {
+      media = `
+        <video
+          src="${escapeHTML(videoUrl)}"
+          ${image ? `poster="${escapeHTML(image)}"` : ''}
+          controls
+          playsinline
+          preload="metadata"
+          style="display:block;width:100%;max-height:70vh;
+                 object-fit:contain;background:#000;border-radius:12px"
+        ></video>`;
+    } else if (image) {
+      media = `
+        <img
+          src="${escapeHTML(image)}"
+          alt="PRASANN post"
+          loading="lazy"
+          style="display:block;width:100%;height:auto;
+                 max-height:70vh;object-fit:contain;border-radius:12px"
+        >`;
+    }
+
+    const captionHTML = caption
+      ? `<details class="feed-caption">
+           <summary>${lang === 'hi' ? 'और पढ़ें' : 'Read caption'}</summary>
+           <p>${escapeHTML(caption).replace(/\n/g, '<br>')}</p>
+         </details>`
+      : '';
 
     return `
-      <article class="story-card">
-        <button type="button" class="story-open"
-          data-story="${index}"
-          aria-label="${escapeHTML(caption || 'PRASANN content')}">
-          ${preview}
-        </button>
-        ${caption ? '<p>' + escapeHTML(caption) + '</p>' : ''}
+      <article class="feed-post">
+        <div class="feed-brand">PRASANN 💚</div>
+        <div class="feed-media">${media}</div>
+        ${captionHTML}
       </article>`;
   }).join('');
-  }
+}
+
 function stopStoryTimer() {
   if (storyTimer) clearTimeout(storyTimer);
   storyTimer = null;
