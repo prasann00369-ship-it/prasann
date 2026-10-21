@@ -16,10 +16,11 @@ main{max-width:760px;margin:auto;padding:14px}
 h2{margin:0 0 10px;color:var(--g);font-size:17px}
 h3{font-size:16px;margin:18px 0 8px;color:var(--g)}
 label{display:block;font-size:13px;margin:8px 0 3px;color:#555}
-input,select,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:15px}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:15px;background:#fff}
 button{background:var(--o);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-size:15px;margin-top:10px;cursor:pointer}
 button:disabled{opacity:.5;cursor:not-allowed}
-button.s{background:var(--g)} button.d{background:var(--r)}
+button.s{background:var(--g)}
+button.d{background:var(--r)}
 button.l{background:transparent;border:1px solid #fff;margin:0}
 .tabs{display:flex;gap:8px;margin-bottom:12px}
 .tabs button{margin:0;flex:1;background:#ddd;color:#222}
@@ -37,23 +38,34 @@ button.l{background:transparent;border:1px solid #fff;margin:0}
 .pack-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .pack-fields label{margin-top:5px}
 .pack-head button{margin:0}
-.note{font-size:12px;color:#666;margin:6px 0}
+.note{font-size:12px;color:#666;margin:6px 0;line-height:1.5}
 .preview{max-width:100%;max-height:260px;border-radius:10px;margin-top:10px}
 .upload-progress{margin:12px 0;padding:12px;background:#fbf6ea;border-radius:10px;border:1px solid #e5dcc8}
 .upload-progress .up-text{font-size:13px;color:#1f4d2b;margin-bottom:8px;overflow-wrap:anywhere}
 .upload-progress .up-track{height:12px;background:#e2e2e2;border-radius:20px;overflow:hidden}
 .upload-progress .up-fill{height:100%;width:0;background:#1f4d2b;border-radius:20px;transition:width .15s}
 .upload-progress .up-detail{font-size:12px;color:#666;margin-top:6px}
-@media(max-width:420px){.pack-fields{grid-template-columns:1fr 1fr}.row{gap:6px}.row button{padding:7px;font-size:12px}}
+.section-note{padding:10px;background:#f3f7ef;border-radius:8px;font-size:12px;color:#315638;line-height:1.6}
+@media(max-width:420px){
+.pack-fields{grid-template-columns:1fr 1fr}
+.row{gap:6px;flex-wrap:wrap}
+.row button{padding:7px;font-size:12px}
+}
 </style>
 </head>
 <body>
-<header><b>PRASANN Admin</b><button class="l hide" id="out" onclick="logout()">Logout</button></header>
+<header>
+  <b>PRASANN Admin</b>
+  <button class="l hide" id="out" onclick="logout()">Logout</button>
+</header>
+
 <main>
   <div id="login" class="card">
     <h2>Admin Login</h2>
-    <label>Email</label><input id="em" type="email" autocomplete="username">
-    <label>Password</label><input id="pw" type="password" autocomplete="current-password">
+    <label>Email</label>
+    <input id="em" type="email" autocomplete="username">
+    <label>Password</label>
+    <input id="pw" type="password" autocomplete="current-password">
     <button onclick="login()">Login</button>
   </div>
 
@@ -66,72 +78,383 @@ button.l{background:transparent;border:1px solid #fff;margin:0}
     <div id="p1">
       <div class="card">
         <h2 id="ptitle">नया Product</h2>
-        <label>Name (English)</label><input id="pn" autocomplete="off">
-        <label>नाम (हिंदी)</label><input id="ph" autocomplete="off">
-        <label>Product Description / प्रोडक्ट का विवरण</label><textarea id="pd" rows="3" placeholder="प्रोडक्ट की जानकारी लिखें"></textarea>
-        <label>Product Video URL (Optional)</label><input id="pvideo" type="url" placeholder="https://...">
-        <label>Category</label>
-        <select id="pc"><option>Snacks</option><option>Indian Meals</option><option>South Indian Meals</option><option>Fast Food</option><option>Sweets</option></select>
-        <h3>Pack Options / पैक और कीमत</h3>
-        <p class="note">हर पैक का वजन और कीमत अलग भरें।</p>
-        <div id="packs"></div><button type="button" class="s" onclick="addPack()">+ Add Pack</button>
-        <label>Status</label><select id="ps"><option value="available">Available</option><option value="coming_soon">Coming Soon</option></select>
-        <label>Product Photo (अनिवार्य)</label><input id="pf" type="file" accept="image/*">
+
+        <label>Product Name (English)</label>
+        <input id="pn" autocomplete="off" placeholder="Soya Momos">
+
+        <label>नाम (हिंदी)</label>
+        <input id="ph" autocomplete="off" placeholder="सोया मोमोज़">
+
+        <label>Product Description / प्रोडक्ट का विवरण</label>
+        <textarea id="pd" rows="3" placeholder="प्रोडक्ट की जानकारी लिखें"></textarea>
+
+        <label>Product Video URL (Optional)</label>
+        <input id="pvideo" type="url" placeholder="https://...">
+
+        <label>Category / कैटेगरी</label>
+        <select id="pc">
+          <option value="Snacks">Snacks</option>
+          <option value="Indian Meals">Indian Meals</option>
+          <option value="South Indian Meals">South Indian Meals</option>
+          <option value="Fast Food">Fast Food</option>
+          <option value="Italian Food">Italian Food</option>
+          <option value="Sweets">Sweets</option>
+          <option value="Other Food">Other Food</option>
+        </select>
+
+        <h3>Product Options / प्रोडक्ट के विकल्प</h3>
+        <p class="note">
+          हर विकल्प में उसका नाम, Type/Group, Quantity, Unit और Price भरें।
+          उदाहरण: Group = Steam, Option Name = Regular, Quantity = 10,
+          Unit = Pieces, Price = 99.
+        </p>
+
+        <div class="section-note">
+          मोमोज़: Steam/Fried और अलग-अलग पीस।
+          थाली: Regular/Special, रोटी की संख्या और कीमत।
+          अन्य खाने: अपनी ज़रूरत के अनुसार विकल्प भरें।
+          जिस जानकारी की ज़रूरत न हो, उसे खाली छोड़ सकते हैं।
+        </div>
+
+        <div id="packs"></div>
+        <button type="button" class="s" onclick="addPack()">+ Add Option / विकल्प जोड़ें</button>
+
+        <label>Status</label>
+        <select id="ps">
+          <option value="available">Available</option>
+          <option value="coming_soon">Coming Soon</option>
+        </select>
+
+        <label>Product Photo (अनिवार्य)</label>
+        <input id="pf" type="file" accept="image/*">
         <p id="photoNote" class="note">नया प्रोडक्ट जोड़ने के लिए फोटो जरूरी है।</p>
+
         <div id="productProgress" class="upload-progress hide" role="status" aria-live="polite">
           <div id="productProgressText" class="up-text">अपलोड शुरू हो रहा है…</div>
           <div class="up-track"><div id="productProgressFill" class="up-fill"></div></div>
           <div id="productProgressDetail" class="up-detail">कृपया प्रतीक्षा करें</div>
         </div>
-        <button class="s" id="saveBtn" onclick="saveP()">Save</button><button type="button" onclick="resetP()" style="background:#999">Clear</button>
+
+        <button class="s" id="saveBtn" onclick="saveP()">Save Product</button>
+        <button type="button" onclick="resetP()" style="background:#999">Clear</button>
       </div>
-      <div class="card"><h2>सभी Products</h2><div id="plist">लोड हो रहे हैं...</div></div>
+
+      <div class="card">
+        <h2>सभी Products</h2>
+        <div id="plist">लोड हो रहे हैं...</div>
+      </div>
     </div>
 
     <div id="p2" class="hide">
       <div class="card">
         <h2>नया Home Content</h2>
-        <p class="note">यह मौजूदा stories टेबल में सेव होगा। नीचे Photo, Video Upload या Video Link में से एक चुनें। मौजूदा वेबसाइट का stories viewer इसे story की तरह दिखाएगा; होमपेज के सामान्य पोस्ट सेक्शन में दिखाने के लिए app.js में भी बदलाव जरूरी है।</p>
+        <p class="note">
+          यह मौजूदा stories टेबल में सेव होगा। नीचे Photo, Video Upload
+          या Video Link में से एक चुनें। होमपेज के सामान्य पोस्ट सेक्शन
+          में दिखाने के लिए app.js में भी बदलाव जरूरी हो सकता है।
+        </p>
+
         <label>Content Type</label>
         <select id="htype" onchange="homeTypeChanged()">
           <option value="photo">Photo Upload</option>
           <option value="video">Video Upload</option>
           <option value="link">Video Link</option>
         </select>
-        <div id="homeFileWrap"><label id="homeFileLabel">Photo चुनें</label><input id="hf" type="file" accept="image/*"></div>
-        <div id="homeLinkWrap" class="hide"><label>Video URL</label><input id="hurl" type="url" placeholder="https://..."></div>
-        <label>Caption / विवरण</label><input id="hcaption" maxlength="500" placeholder="जैसे: PRASANN — हर सफर में स्वाद">
-        <p class="note">सुझाव: वीडियो छोटा रखें। अपलोड की अनुमति Storage bucket की policies और file-size limit पर निर्भर करती है।</p>
+
+        <div id="homeFileWrap">
+          <label id="homeFileLabel">Photo चुनें</label>
+          <input id="hf" type="file" accept="image/*">
+        </div>
+
+        <div id="homeLinkWrap" class="hide">
+          <label>Video URL</label>
+          <input id="hurl" type="url" placeholder="https://...">
+        </div>
+
+        <label>Caption / विवरण</label>
+        <input id="hcaption" maxlength="500" placeholder="जैसे: PRASANN — हर सफर में स्वाद">
+
+        <p class="note">
+          वीडियो छोटा रखें। अपलोड की अनुमति Storage bucket की policies
+          और file-size limit पर निर्भर करती है।
+        </p>
+
         <div id="homeProgress" class="upload-progress hide" role="status" aria-live="polite">
           <div id="homeProgressText" class="up-text">अपलोड शुरू हो रहा है…</div>
           <div class="up-track"><div id="homeProgressFill" class="up-fill"></div></div>
           <div id="homeProgressDetail" class="up-detail">कृपया प्रतीक्षा करें</div>
         </div>
+
         <button class="s" id="homeSaveBtn" onclick="saveHomeContent()">Publish Content</button>
       </div>
-      <div class="card"><h2>Live Home Content</h2><div id="hlist">लोड हो रहा है...</div></div>
+
+      <div class="card">
+        <h2>Live Home Content</h2>
+        <div id="hlist">लोड हो रहा है...</div>
+      </div>
     </div>
   </div>
 </main>
+
 <div id="msg" role="status" aria-live="polite"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
+
 <script>
 const C=window.PRASANN_CONFIG;
 let sb=null,editId=null,editImg=null,prods=[],packCounter=0;
 const $=id=>document.getElementById(id);
-function msg(text,bad=false){const el=$('msg');el.textContent=text;el.style.background=bad?'#b3261e':'#1f4d2b';el.style.display='block';clearTimeout(msg.timer);msg.timer=setTimeout(()=>el.style.display='none',5000)}
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function tab(n){$('p1').classList.toggle('hide',n!==1);$('p2').classList.toggle('hide',n!==2);$('t1').className=n===1?'on':'';$('t2').className=n===2?'on':''}
-function addPack(grams='',price=''){packCounter++;const id=packCounter;const box=document.createElement('div');box.className='pack';box.innerHTML=`<div class="pack-head"><b class="pack-title">Pack</b><button type="button" class="d" data-remove="${id}">Remove</button></div><div class="pack-fields"><div><label>वजन (ग्राम)</label><input class="pack-grams" type="number" min="1" step="any" placeholder="जैसे 100" value="${esc(grams)}"></div><div><label>कीमत (₹)</label><input class="pack-price" type="number" min="0.01" step="0.01" placeholder="जैसे 99" value="${esc(price)}"></div></div>`;box.querySelector('[data-remove]').addEventListener('click',()=>{box.remove();numberPacks()});$('packs').appendChild(box);numberPacks()}
-function numberPacks(){[...$('packs').querySelectorAll('.pack')].forEach((el,i)=>el.querySelector('.pack-title').textContent='Pack '+(i+1))}
-function clearPacks(){$('packs').innerHTML='';packCounter=0;addPack()}
-function readPacks(){const result=[],seen=new Set();for(const el of $('packs').querySelectorAll('.pack')){const gt=el.querySelector('.pack-grams').value.trim(),pt=el.querySelector('.pack-price').value.trim();if(gt===''&&pt==='')continue;if(gt===''||pt==='')throw new Error('हर पैक का वजन और कीमत दोनों भरें।');const grams=Number(gt),price=Number(pt);if(!Number.isFinite(grams)||grams<=0||!Number.isFinite(price)||price<=0)throw new Error('हर पैक का वजन और कीमत शून्य से अधिक भरें।');if(seen.has(grams))throw new Error('एक ही वजन के दो पैक न रखें।');seen.add(grams);result.push({grams,price})}return result}
-function parsePacks(v){if(Array.isArray(v))return v;if(typeof v==='string'){try{const p=JSON.parse(v);return Array.isArray(p)?p:[]}catch(_){return []}}return []}
-async function init(){if(!C||!C.SUPABASE_URL||!C.SUPABASE_ANON_KEY||C.SUPABASE_URL.startsWith('YOUR'))return msg('config.js में Supabase URL और anon key जाँचें।',true);sb=supabase.createClient(C.SUPABASE_URL,C.SUPABASE_ANON_KEY);const {data,error}=await sb.auth.getSession();if(error)return msg(error.message,true);if(data.session)await enter()}
-async function login(){if(!sb)return msg('पहले config.js की जाँच करें।',true);const email=$('em').value.trim(),password=$('pw').value;if(!email||!password)return msg('Email और Password भरें।',true);const {error}=await sb.auth.signInWithPassword({email,password});if(error)return msg('Login फेल: '+error.message,true);await enter()}
-async function enter(){const {data:u,error:ue}=await sb.auth.getUser();if(ue||!u.user){await sb.auth.signOut();return msg('User verify नहीं हो पाया। दोबारा Login करें।',true)}const {data,error}=await sb.from('admins').select('user_id').eq('user_id',u.user.id).maybeSingle();if(error){await sb.auth.signOut();return msg('Admin जाँच में समस्या: '+error.message,true)}if(!data){await sb.auth.signOut();return msg('यह account admin नहीं है।',true)}$('login').classList.add('hide');$('app').classList.remove('hide');$('out').classList.remove('hide');await Promise.all([loadP(),loadHomeContent()])}
-async function logout(){if(sb)await sb.auth.signOut();location.reload()}
+
+const CATEGORIES=[
+  'Snacks','Indian Meals','South Indian Meals',
+  'Fast Food','Italian Food','Sweets','Other Food'
+];
+
+function msg(text,bad=false){
+  const el=$('msg');
+  el.textContent=text;
+  el.style.background=bad?'#b3261e':'#1f4d2b';
+  el.style.display='block';
+  clearTimeout(msg.timer);
+  msg.timer=setTimeout(()=>el.style.display='none',5000);
+}
+
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+}[c]));
+
+function tab(n){
+  $('p1').classList.toggle('hide',n!==1);
+  $('p2').classList.toggle('hide',n!==2);
+  $('t1').className=n===1?'on':'';
+  $('t2').className=n===2?'on':'';
+}
+
+function addPack(data={}){
+  if(typeof data!=='object'||data===null)data={};
+
+  packCounter++;
+  const id=packCounter;
+  const box=document.createElement('div');
+  box.className='pack';
+
+  /*
+    grams और price पुराने products के लिए रखे गए हैं।
+    नए options में label, unit और group भी सेव होंगे।
+  */
+  const qty=data.quantity??data.grams??'';
+  const unit=data.unit??'grams';
+  const label=data.label??'';
+  const group=data.group??'';
+  const price=data.price??'';
+
+  box.innerHTML=`
+    <div class="pack-head">
+      <b class="pack-title">Option</b>
+      <button type="button" class="d" data-remove="${id}">Remove</button>
+    </div>
+
+    <div class="pack-fields">
+      <div>
+        <label>Type / Group</label>
+        <input class="pack-group" maxlength="100"
+          placeholder="Steam / Fried / Regular" value="${esc(group)}">
+      </div>
+      <div>
+        <label>Option Name</label>
+        <input class="pack-label" maxlength="100"
+          placeholder="Special / 10 Pieces" value="${esc(label)}">
+      </div>
+      <div>
+        <label>Quantity</label>
+        <input class="pack-qty" type="number" min="0.01" step="any"
+          placeholder="जैसे 10" value="${esc(qty)}">
+      </div>
+      <div>
+        <label>Unit</label>
+        <select class="pack-unit">
+          <option value="grams">ग्राम (g)</option>
+          <option value="kg">किलो (kg)</option>
+          <option value="pieces">पीस (pieces)</option>
+          <option value="plate">प्लेट (plate)</option>
+          <option value="pack">पैक (pack)</option>
+          <option value="ml">मिलीलीटर (ml)</option>
+          <option value="litre">लीटर (litre)</option>
+          <option value="serving">सर्विंग (serving)</option>
+          <option value="custom">अन्य (custom)</option>
+        </select>
+      </div>
+      <div>
+        <label>Custom Unit (यदि Other चुना)</label>
+        <input class="pack-custom-unit" maxlength="30"
+          placeholder="जैसे Bowl" value="${unit==='custom'?esc(data.custom_unit||''):''}">
+      </div>
+      <div>
+        <label>Price (₹)</label>
+        <input class="pack-price" type="number" min="0" step="0.01"
+          placeholder="जैसे 99" value="${esc(price)}">
+      </div>
+    </div>`;
+
+  box.querySelector('.pack-unit').value=
+    ['grams','kg','pieces','plate','pack','ml','litre','serving','custom'].includes(unit)
+      ?unit:'custom';
+
+  box.querySelector('[data-remove]').addEventListener('click',()=>{
+    box.remove();
+    numberPacks();
+  });
+
+  $('packs').appendChild(box);
+  numberPacks();
+}
+
+function numberPacks(){
+  [...$('packs').querySelectorAll('.pack')].forEach((el,i)=>{
+    el.querySelector('.pack-title').textContent='Option '+(i+1);
+  });
+}
+
+function clearPacks(){
+  $('packs').innerHTML='';
+  packCounter=0;
+  addPack();
+}
+
+function readPacks(){
+  const result=[];
+  const seen=new Set();
+
+  for(const el of $('packs').querySelectorAll('.pack')){
+    const group=el.querySelector('.pack-group').value.trim();
+    const label=el.querySelector('.pack-label').value.trim();
+    const qt=el.querySelector('.pack-qty').value.trim();
+    const unit=el.querySelector('.pack-unit').value;
+    const customUnit=el.querySelector('.pack-custom-unit').value.trim();
+    const pt=el.querySelector('.pack-price').value.trim();
+
+    const allBlank=!group&&!label&&!qt&&!pt&&!customUnit;
+    if(allBlank)continue;
+
+    if(!label&&!group)
+      throw new Error('हर विकल्प में Type/Group या Option Name भरें।');
+
+    if(qt===''||pt==='')
+      throw new Error('हर विकल्प की Quantity और Price भरें।');
+
+    const quantity=Number(qt);
+    const price=Number(pt);
+
+    if(!Number.isFinite(quantity)||quantity<=0)
+      throw new Error('Quantity शून्य से अधिक भरें।');
+
+    if(!Number.isFinite(price)||price<0)
+      throw new Error('Price शून्य या उससे अधिक भरें।');
+
+    if(unit==='custom'&&!customUnit)
+      throw new Error('Custom Unit का नाम भरें।');
+
+    const finalUnit=unit==='custom'?customUnit:unit;
+    const key=[group,label,quantity,finalUnit,price].join('|').toLowerCase();
+
+    if(seen.has(key))
+      throw new Error('एक जैसे दो विकल्प न रखें।');
+
+    seen.add(key);
+
+    /*
+      grams और price पुराने format के साथ रखे गए हैं,
+      जिससे पुराने products पढ़ने की compatibility बनी रहे।
+      नए metadata में quantity, unit, group और label भी हैं।
+    */
+    result.push({
+      grams:quantity,
+      quantity:quantity,
+      unit:finalUnit,
+      custom_unit:unit==='custom'?customUnit:null,
+      group:group||null,
+      label:label||null,
+      price:price
+    });
+  }
+
+  return result;
+}
+
+function parsePacks(v){
+  if(Array.isArray(v))return v;
+  if(typeof v==='string'){
+    try{
+      const p=JSON.parse(v);
+      return Array.isArray(p)?p:[];
+    }catch(_){return []}
+  }
+  return [];
+}
+
+async function init(){
+  if(!C||!C.SUPABASE_URL||!C.SUPABASE_ANON_KEY||
+     C.SUPABASE_URL.startsWith('YOUR')){
+    return msg('config.js में Supabase URL और anon key जाँचें।',true);
+  }
+
+  sb=supabase.createClient(C.SUPABASE_URL,C.SUPABASE_ANON_KEY);
+
+  const {data,error}=await sb.auth.getSession();
+  if(error)return msg(error.message,true);
+  if(data.session)await enter();
+}
+
+async function login(){
+  if(!sb)return msg('पहले config.js की जाँच करें।',true);
+
+  const email=$('em').value.trim();
+  const password=$('pw').value;
+
+  if(!email||!password)
+    return msg('Email और Password भरें।',true);
+
+  const {error}=await sb.auth.signInWithPassword({email,password});
+
+  if(error)return msg('Login फेल: '+error.message,true);
+  await enter();
+}
+
+async function enter(){
+  const {data:u,error:ue}=await sb.auth.getUser();
+
+  if(ue||!u.user){
+    await sb.auth.signOut();
+    return msg('User verify नहीं हो पाया। दोबारा Login करें।',true);
+  }
+
+  const {data,error}=await sb.from('admins')
+    .select('user_id')
+    .eq('user_id',u.user.id)
+    .maybeSingle();
+
+  if(error){
+    await sb.auth.signOut();
+    return msg('Admin जाँच में समस्या: '+error.message,true);
+  }
+
+  if(!data){
+    await sb.auth.signOut();
+    return msg('यह account admin नहीं है।',true);
+  }
+
+  $('login').classList.add('hide');
+  $('app').classList.remove('hide');
+  $('out').classList.remove('hide');
+
+  await Promise.all([loadP(),loadHomeContent()]);
+}
+
+async function logout(){
+  if(sb)await sb.auth.signOut();
+  location.reload();
+}
 
 function setUploadProgress(prefix,percent,text,detail){
   const box=$(prefix+'Progress');
@@ -141,129 +464,394 @@ function setUploadProgress(prefix,percent,text,detail){
   $(prefix+'ProgressFill').style.width=percent+'%';
   $(prefix+'ProgressDetail').textContent=detail||'';
 }
+
 function hideUploadProgress(prefix){
   const box=$(prefix+'Progress');
   if(box)box.classList.add('hide');
 }
+
 async function up(file,prefix){
   if(!file)throw new Error('पहले फ़ाइल चुनें।');
-  const isVideo=file.type.startsWith('video/'),isImage=file.type.startsWith('image/');
-  if(!isVideo&&!isImage)throw new Error('केवल image या video फ़ाइल चुनें।');
-  if(isImage&&file.size>10*1024*1024)throw new Error('फोटो 10 MB से छोटी रखें।');
-  if(isVideo&&file.size>50*1024*1024)throw new Error('वीडियो 50 MB से छोटा रखें।');
+
+  const isVideo=file.type.startsWith('video/');
+  const isImage=file.type.startsWith('image/');
+
+  if(!isVideo&&!isImage)
+    throw new Error('केवल image या video फ़ाइल चुनें।');
+
+  if(isImage&&file.size>10*1024*1024)
+    throw new Error('फोटो 10 MB से छोटी रखें।');
+
+  if(isVideo&&file.size>50*1024*1024)
+    throw new Error('वीडियो 50 MB से छोटा रखें।');
+
   const {data:sessionData,error:sessionError}=await sb.auth.getSession();
   if(sessionError)throw sessionError;
+
   const token=sessionData.session&&sessionData.session.access_token;
   if(!token)throw new Error('Login की अवधि समाप्त हो गई। दोबारा Login करें।');
+
   const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-  const path=(isVideo?'home-videos/':'')+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'-'+safe;
+  const path=(isVideo?'home-videos/':'')+
+    Date.now()+'-'+Math.random().toString(36).slice(2,8)+'-'+safe;
+
   const bucket='product-images';
   const base=C.SUPABASE_URL.replace(/\/$/,'');
   const encodedPath=path.split('/').map(encodeURIComponent).join('/');
   const url=base+'/storage/v1/object/'+bucket+'/'+encodedPath;
+
   setUploadProgress(prefix,0,'अपलोड शुरू हो रहा है…','0% पूरा');
+
   await new Promise((resolve,reject)=>{
     const xhr=new XMLHttpRequest();
+
     xhr.open('POST',url,true);
     xhr.setRequestHeader('apikey',C.SUPABASE_ANON_KEY);
     xhr.setRequestHeader('Authorization','Bearer '+token);
     xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
     xhr.setRequestHeader('x-upsert','false');
+
     xhr.upload.onprogress=event=>{
       if(event.lengthComputable){
         const percent=Math.min(99,Math.round(event.loaded/event.total*100));
         const loadedMB=(event.loaded/1024/1024).toFixed(1);
         const totalMB=(event.total/1024/1024).toFixed(1);
-        setUploadProgress(prefix,percent,'फ़ाइल अपलोड हो रही है… '+percent+'%',loadedMB+' MB / '+totalMB+' MB');
+
+        setUploadProgress(prefix,percent,'फ़ाइल अपलोड हो रही है… '+percent+'%',
+          loadedMB+' MB / '+totalMB+' MB');
       }else{
-        setUploadProgress(prefix,0,'फ़ाइल अपलोड हो रही है…','प्रगति की गणना हो रही है');
+        setUploadProgress(prefix,0,'फ़ाइल अपलोड हो रही है…',
+          'प्रगति की गणना हो रही है');
       }
     };
+
     xhr.onload=()=>{
       if(xhr.status>=200&&xhr.status<300){
-        setUploadProgress(prefix,100,'फ़ाइल अपलोड पूरी हुई ✅','अब Content सेव हो रहा है…');
+        setUploadProgress(prefix,100,'फ़ाइल अपलोड पूरी हुई ✅',
+          'अब Content सेव हो रहा है…');
         resolve();
       }else{
         let message='फ़ाइल अपलोड नहीं हुई।';
-        try{const response=JSON.parse(xhr.responseText);message=response.message||response.error||message}catch(_){}
+        try{
+          const response=JSON.parse(xhr.responseText);
+          message=response.message||response.error||message;
+        }catch(_){}
         reject(new Error(message+' (HTTP '+xhr.status+')'));
       }
     };
+
     xhr.onerror=()=>reject(new Error('नेटवर्क समस्या। इंटरनेट जाँचकर फिर कोशिश करें।'));
     xhr.onabort=()=>reject(new Error('अपलोड रद्द हो गया।'));
     xhr.send(file);
   });
+
   return sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
 }
 
-async function loadP(){const {data,error}=await sb.from('products').select('*').order('created_at');if(error)return msg('Products लोड नहीं हुए: '+error.message,true);prods=data||[];$('plist').innerHTML=prods.map(p=>`<div class="row">${p.image_url?`<img src="${esc(p.image_url)}" alt="">`:'<div class="ph">Photo</div>'}<div class="i"><b>${esc(p.name)}</b><small>${esc(p.category)} • ${p.status==='available'?'Available':'Coming Soon'}</small></div><button class="s" onclick="editP('${esc(p.id)}')">Edit</button><button class="d" onclick="delP('${esc(p.id)}')">Delete</button></div>`).join('')||'कोई product नहीं'}
-function resetP(){editId=null;editImg=null;['pn','ph','pd','pvideo','pf'].forEach(id=>$(id).value='');$('pc').value='Snacks';$('ps').value='available';$('ptitle').textContent='नया Product';$('photoNote').textContent='नया प्रोडक्ट जोड़ने के लिए फोटो जरूरी है।';$('saveBtn').textContent='Save';clearPacks();hideUploadProgress('product');window.scrollTo({top:0,behavior:'smooth'})}
-function editP(id){const p=prods.find(x=>String(x.id)===String(id));if(!p)return msg('Product नहीं मिला।',true);editId=p.id;editImg=p.image_url||null;$('pn').value=p.name||'';$('ph').value=p.name_hi||'';$('pd').value=p.description||'';$('pvideo').value=p.video_url||'';$('pc').value=p.category||'Snacks';$('ps').value=p.status||'available';$('pf').value='';$('ptitle').textContent='Edit: '+(p.name||'Product');$('photoNote').textContent=editImg?'पुरानी फोटो बनी रहेगी। बदलने के लिए नई फोटो चुनें।':'इस प्रोडक्ट के लिए फोटो चुनें।';$('saveBtn').textContent='Update Product';$('packs').innerHTML='';packCounter=0;const packs=parsePacks(p.pack_options||p.packs);if(packs.length)packs.forEach(x=>addPack(x.grams??'',x.price??''));else addPack();hideUploadProgress('product');tab(1);window.scrollTo({top:0,behavior:'smooth'})}
+async function loadP(){
+  const {data,error}=await sb.from('products').select('*').order('created_at');
+
+  if(error)return msg('Products लोड नहीं हुए: '+error.message,true);
+
+  prods=data||[];
+
+  $('plist').innerHTML=prods.map(p=>{
+    const options=parsePacks(p.pack_options||p.packs);
+    const summary=options.length
+      ?options.length+' विकल्प'
+      :'कोई विकल्प नहीं';
+
+    return `<div class="row">
+      ${p.image_url
+        ?`<img src="${esc(p.image_url)}" alt="">`
+        :'<div class="ph">Photo</div>'}
+      <div class="i">
+        <b>${esc(p.name)}</b>
+        <small>${esc(p.category)} • ${p.status==='available'?'Available':'Coming Soon'}</small>
+        <small>${esc(summary)}</small>
+      </div>
+      <button class="s" onclick="editP('${esc(p.id)}')">Edit</button>
+      <button class="d" onclick="delP('${esc(p.id)}')">Delete</button>
+    </div>`;
+  }).join('')||'कोई product नहीं';
+}
+
+function resetP(){
+  editId=null;
+  editImg=null;
+
+  ['pn','ph','pd','pvideo','pf'].forEach(id=>$(id).value='');
+
+  $('pc').value='Snacks';
+  $('ps').value='available';
+  $('ptitle').textContent='नया Product';
+  $('photoNote').textContent='नया प्रोडक्ट जोड़ने के लिए फोटो जरूरी है।';
+  $('saveBtn').textContent='Save Product';
+
+  clearPacks();
+  hideUploadProgress('product');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function editP(id){
+  const p=prods.find(x=>String(x.id)===String(id));
+  if(!p)return msg('Product नहीं मिला।',true);
+
+  editId=p.id;
+  editImg=p.image_url||null;
+
+  $('pn').value=p.name||'';
+  $('ph').value=p.name_hi||'';
+  $('pd').value=p.description||'';
+  $('pvideo').value=p.video_url||'';
+
+  const category=p.category||'Snacks';
+
+  if(!CATEGORIES.includes(category)){
+    const option=document.createElement('option');
+    option.value=category;
+    option.textContent=category;
+    $('pc').appendChild(option);
+  }
+
+  $('pc').value=category;
+  $('ps').value=p.status||'available';
+  $('pf').value='';
+
+  $('ptitle').textContent='Edit: '+(p.name||'Product');
+  $('photoNote').textContent=editImg
+    ?'पुरानी फोटो बनी रहेगी। बदलने के लिए नई फोटो चुनें।'
+    :'इस प्रोडक्ट के लिए फोटो चुनें.';
+
+  $('saveBtn').textContent='Update Product';
+
+  $('packs').innerHTML='';
+  packCounter=0;
+
+  const options=parsePacks(p.pack_options||p.packs);
+
+  if(options.length)options.forEach(x=>addPack(x));
+  else addPack();
+
+  hideUploadProgress('product');
+  tab(1);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
 async function saveP(){
   const b=$('saveBtn');
+  const wasEditing=editId!==null;
+
   try{
     if(!sb)throw new Error('Supabase कनेक्शन उपलब्ध नहीं।');
+
     const name=$('pn').value.trim();
     if(!name)throw new Error('Product का नाम जरूरी है।');
+
     const f=$('pf').files[0];
-    if(!f&&!editImg)throw new Error('पहले Product की फोटो चुनें।');
-    const packs=readPacks();
-    if(!packs.length)throw new Error('कम से कम एक पैक और उसकी कीमत भरें।');
+
+    if(!f&&!editImg)
+      throw new Error('पहले Product की फोटो चुनें।');
+
+    const options=readPacks();
+
+    if(!options.length)
+      throw new Error('कम से कम एक Product Option और उसकी कीमत भरें।');
+
     const video=$('pvideo').value.trim();
-    if(video){const u=new URL(video);if(!['http:','https:'].includes(u.protocol))throw new Error('Video URL सही नहीं है।')}
+
+    if(video){
+      const u=new URL(video);
+      if(!['http:','https:'].includes(u.protocol))
+        throw new Error('Video URL सही नहीं है।');
+    }
+
     b.disabled=true;
     b.textContent='Saving...';
+
     let img=editImg;
     if(f)img=await up(f,'product');
-    const row={name,name_hi:$('ph').value.trim()||null,category:$('pc').value,description:$('pd').value.trim()||null,video_url:video||null,pack_options:packs,status:$('ps').value,image_url:img};
-    const result=editId?await sb.from('products').update(row).eq('id',editId):await sb.from('products').insert(row);
+
+    const row={
+      name,
+      name_hi:$('ph').value.trim()||null,
+      category:$('pc').value,
+      description:$('pd').value.trim()||null,
+      video_url:video||null,
+      pack_options:options,
+      status:$('ps').value,
+      image_url:img
+    };
+
+    const result=wasEditing
+      ?await sb.from('products').update(row).eq('id',editId)
+      :await sb.from('products').insert(row);
+
     if(result.error)throw result.error;
+
     msg('Product सेव हो गया ✅');
     resetP();
     await loadP();
-  }catch(e){msg(e.message||'Product सेव नहीं हो पाया।',true)}
-  finally{b.disabled=false;b.textContent=editId?'Update Product':'Save';hideUploadProgress('product')}
+
+  }catch(e){
+    msg(e.message||'Product सेव नहीं हो पाया।',true);
+  }finally{
+    b.disabled=false;
+    b.textContent=editId?'Update Product':'Save Product';
+    hideUploadProgress('product');
+  }
 }
-async function delP(id){if(!confirm('क्या यह Product Delete करना है?'))return;const {error}=await sb.from('products').delete().eq('id',id);if(error)return msg(error.message,true);msg('Product Delete हो गया।');await loadP()}
-function homeTypeChanged(){const t=$('htype').value;const isLink=t==='link';$('homeFileWrap').classList.toggle('hide',isLink);$('homeLinkWrap').classList.toggle('hide',!isLink);$('homeFileLabel').textContent=t==='video'?'Video फ़ाइल चुनें':'Photo चुनें';$('hf').accept=t==='video'?'video/*':'image/*';$('hf').value='';hideUploadProgress('home')}
-async function loadHomeContent(){const {data,error}=await sb.from('stories').select('*').order('created_at',{ascending:false});if(error){$('hlist').textContent='Content लोड नहीं हुआ: '+error.message;return}const rows=data||[];$('hlist').innerHTML=rows.map(s=>{const isV=!!s.video_url;const media=isV?`<div class="ph">VIDEO</div>`:(s.image_url?`<img src="${esc(s.cover_url||s.image_url)}" alt="">`:'<div class="ph">Content</div>');return `<div class="row">${media}<div class="i"><b>${esc(s.caption||(isV?'Video':'Photo'))}</b><small>${isV?'Video':'Photo'} • ${s.expires_at?'समाप्ति: '+esc(new Date(s.expires_at).toLocaleString()):'Expiry नहीं सेट'}</small>${isV?`<small>${esc(s.video_url)}</small>`:''}</div><button class="d" onclick="delHomeContent('${esc(s.id)}')">Delete</button></div>`}).join('')||'अभी कोई content नहीं है।'}
+
+async function delP(id){
+  if(!confirm('क्या यह Product Delete करना है?'))return;
+
+  const {error}=await sb.from('products').delete().eq('id',id);
+
+  if(error)return msg(error.message,true);
+
+  msg('Product Delete हो गया।');
+  await loadP();
+}
+
+function homeTypeChanged(){
+  const t=$('htype').value;
+  const isLink=t==='link';
+
+  $('homeFileWrap').classList.toggle('hide',isLink);
+  $('homeLinkWrap').classList.toggle('hide',!isLink);
+  $('homeFileLabel').textContent=t==='video'?'Video फ़ाइल चुनें':'Photo चुनें';
+  $('hf').accept=t==='video'?'video/*':'image/*';
+  $('hf').value='';
+
+  hideUploadProgress('home');
+}
+
+async function loadHomeContent(){
+  const {data,error}=await sb.from('stories')
+    .select('*').order('created_at',{ascending:false});
+
+  if(error){
+    $('hlist').textContent='Content लोड नहीं हुआ: '+error.message;
+    return;
+  }
+
+  const rows=data||[];
+
+  $('hlist').innerHTML=rows.map(s=>{
+    const isV=!!s.video_url;
+
+    const media=isV
+      ?'<div class="ph">VIDEO</div>'
+      :(s.image_url
+        ?`<img src="${esc(s.cover_url||s.image_url)}" alt="">`
+        :'<div class="ph">Content</div>');
+
+    return `<div class="row">
+      ${media}
+      <div class="i">
+        <b>${esc(s.caption||(isV?'Video':'Photo'))}</b>
+        <small>${isV?'Video':'Photo'} • ${
+          s.expires_at
+            ?'समाप्ति: '+esc(new Date(s.expires_at).toLocaleString())
+            :'Expiry नहीं सेट'
+        }</small>
+        ${isV?`<small>${esc(s.video_url)}</small>`:''}
+      </div>
+      <button class="d" onclick="delHomeContent('${esc(s.id)}')">Delete</button>
+    </div>`;
+  }).join('')||'अभी कोई content नहीं है।';
+}
+
 async function saveHomeContent(){
   const b=$('homeSaveBtn');
+
   try{
     if(!sb)throw new Error('Supabase कनेक्शन उपलब्ध नहीं।');
-    const type=$('htype').value,caption=$('hcaption').value.trim()||null;
+
+    const type=$('htype').value;
+    const caption=$('hcaption').value.trim()||null;
+
     let image_url=null,video_url=null;
+
     b.disabled=true;
     b.textContent='Uploading...';
+
     if(type==='photo'){
       const f=$('hf').files[0];
+
       if(!f)throw new Error('Photo चुनें।');
-      if(!f.type.startsWith('image/'))throw new Error('कृपया image फ़ाइल चुनें।');
+      if(!f.type.startsWith('image/'))
+        throw new Error('कृपया image फ़ाइल चुनें।');
+
       image_url=await up(f,'home');
+
     }else if(type==='video'){
       const f=$('hf').files[0];
+
       if(!f)throw new Error('Video चुनें।');
-      if(!f.type.startsWith('video/'))throw new Error('कृपया video फ़ाइल चुनें।');
+      if(!f.type.startsWith('video/'))
+        throw new Error('कृपया video फ़ाइल चुनें।');
+
       video_url=await up(f,'home');
+
     }else{
       const raw=$('hurl').value.trim();
+
       if(!raw)throw new Error('Video URL डालें।');
-      let u;try{u=new URL(raw)}catch(_){throw new Error('Video URL सही नहीं है।')}
-      if(!['http:','https:'].includes(u.protocol))throw new Error('केवल http/https लिंक स्वीकार है।');
+
+      let u;
+      try{u=new URL(raw)}
+      catch(_){throw new Error('Video URL सही नहीं है।')}
+
+      if(!['http:','https:'].includes(u.protocol))
+        throw new Error('केवल http/https लिंक स्वीकार है।');
+
       video_url=raw;
     }
+
     b.textContent='Publishing...';
-    const row={image_url,video_url,caption,expires_at:new Date(Date.now()+10*365*24*60*60*1000).toISOString()};
+
+    const row={
+      image_url,
+      video_url,
+      caption,
+      expires_at:new Date(Date.now()+10*365*24*60*60*1000).toISOString()
+    };
+
     const {error}=await sb.from('stories').insert(row);
+
     if(error)throw error;
-    $('hf').value='';$('hurl').value='';$('hcaption').value='';
+
+    $('hf').value='';
+    $('hurl').value='';
+    $('hcaption').value='';
+
     msg('Content publish हो गया ✅');
     await loadHomeContent();
-  }catch(e){msg(e.message||'Content publish नहीं हुआ।',true)}
-  finally{b.disabled=false;b.textContent='Publish Content';hideUploadProgress('home')}
+
+  }catch(e){
+    msg(e.message||'Content publish नहीं हुआ।',true);
+  }finally{
+    b.disabled=false;
+    b.textContent='Publish Content';
+    hideUploadProgress('home');
+  }
 }
-async function delHomeContent(id){if(!confirm('क्या यह Home Content Delete करना है?'))return;const {error}=await sb.from('stories').delete().eq('id',id);if(error)return msg('Delete नहीं हुआ: '+error.message,true);msg('Content Delete हो गया।');await loadHomeContent()}
-clearPacks();homeTypeChanged();init();
+
+async function delHomeContent(id){
+  if(!confirm('क्या यह Home Content Delete करना है?'))return;
+
+  const {error}=await sb.from('stories').delete().eq('id',id);
+
+  if(error)return msg('Delete नहीं हुआ: '+error.message,true);
+
+  msg('Content Delete हो गया।');
+  await loadHomeContent();
+}
+
+clearPacks();
+homeTypeChanged();
+init();
 </script>
 </body>
-        </html>
+      </html>
