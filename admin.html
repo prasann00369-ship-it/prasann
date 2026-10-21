@@ -39,6 +39,11 @@ button.l{background:transparent;border:1px solid #fff;margin:0}
 .pack-head button{margin:0}
 .note{font-size:12px;color:#666;margin:6px 0}
 .preview{max-width:100%;max-height:260px;border-radius:10px;margin-top:10px}
+.upload-progress{margin:12px 0;padding:12px;background:#fbf6ea;border-radius:10px;border:1px solid #e5dcc8}
+.upload-progress .up-text{font-size:13px;color:#1f4d2b;margin-bottom:8px;overflow-wrap:anywhere}
+.upload-progress .up-track{height:12px;background:#e2e2e2;border-radius:20px;overflow:hidden}
+.upload-progress .up-fill{height:100%;width:0;background:#1f4d2b;border-radius:20px;transition:width .15s}
+.upload-progress .up-detail{font-size:12px;color:#666;margin-top:6px}
 @media(max-width:420px){.pack-fields{grid-template-columns:1fr 1fr}.row{gap:6px}.row button{padding:7px;font-size:12px}}
 </style>
 </head>
@@ -73,6 +78,11 @@ button.l{background:transparent;border:1px solid #fff;margin:0}
         <label>Status</label><select id="ps"><option value="available">Available</option><option value="coming_soon">Coming Soon</option></select>
         <label>Product Photo (अनिवार्य)</label><input id="pf" type="file" accept="image/*">
         <p id="photoNote" class="note">नया प्रोडक्ट जोड़ने के लिए फोटो जरूरी है।</p>
+        <div id="productProgress" class="upload-progress hide" role="status" aria-live="polite">
+          <div id="productProgressText" class="up-text">अपलोड शुरू हो रहा है…</div>
+          <div class="up-track"><div id="productProgressFill" class="up-fill"></div></div>
+          <div id="productProgressDetail" class="up-detail">कृपया प्रतीक्षा करें</div>
+        </div>
         <button class="s" id="saveBtn" onclick="saveP()">Save</button><button type="button" onclick="resetP()" style="background:#999">Clear</button>
       </div>
       <div class="card"><h2>सभी Products</h2><div id="plist">लोड हो रहे हैं...</div></div>
@@ -92,6 +102,11 @@ button.l{background:transparent;border:1px solid #fff;margin:0}
         <div id="homeLinkWrap" class="hide"><label>Video URL</label><input id="hurl" type="url" placeholder="https://..."></div>
         <label>Caption / विवरण</label><input id="hcaption" maxlength="500" placeholder="जैसे: PRASANN — हर सफर में स्वाद">
         <p class="note">सुझाव: वीडियो छोटा रखें। अपलोड की अनुमति Storage bucket की policies और file-size limit पर निर्भर करती है।</p>
+        <div id="homeProgress" class="upload-progress hide" role="status" aria-live="polite">
+          <div id="homeProgressText" class="up-text">अपलोड शुरू हो रहा है…</div>
+          <div class="up-track"><div id="homeProgressFill" class="up-fill"></div></div>
+          <div id="homeProgressDetail" class="up-detail">कृपया प्रतीक्षा करें</div>
+        </div>
         <button class="s" id="homeSaveBtn" onclick="saveHomeContent()">Publish Content</button>
       </div>
       <div class="card"><h2>Live Home Content</h2><div id="hlist">लोड हो रहा है...</div></div>
@@ -117,17 +132,138 @@ async function init(){if(!C||!C.SUPABASE_URL||!C.SUPABASE_ANON_KEY||C.SUPABASE_U
 async function login(){if(!sb)return msg('पहले config.js की जाँच करें।',true);const email=$('em').value.trim(),password=$('pw').value;if(!email||!password)return msg('Email और Password भरें।',true);const {error}=await sb.auth.signInWithPassword({email,password});if(error)return msg('Login फेल: '+error.message,true);await enter()}
 async function enter(){const {data:u,error:ue}=await sb.auth.getUser();if(ue||!u.user){await sb.auth.signOut();return msg('User verify नहीं हो पाया। दोबारा Login करें।',true)}const {data,error}=await sb.from('admins').select('user_id').eq('user_id',u.user.id).maybeSingle();if(error){await sb.auth.signOut();return msg('Admin जाँच में समस्या: '+error.message,true)}if(!data){await sb.auth.signOut();return msg('यह account admin नहीं है।',true)}$('login').classList.add('hide');$('app').classList.remove('hide');$('out').classList.remove('hide');await Promise.all([loadP(),loadHomeContent()])}
 async function logout(){if(sb)await sb.auth.signOut();location.reload()}
-async function up(file){if(!file)throw new Error('पहले फ़ाइल चुनें।');const isVideo=file.type.startsWith('video/'),isImage=file.type.startsWith('image/');if(!isVideo&&!isImage)throw new Error('केवल image या video फ़ाइल चुनें।');if(isImage&&file.size>10*1024*1024)throw new Error('फोटो 10 MB से छोटी रखें।');if(isVideo&&file.size>50*1024*1024)throw new Error('वीडियो 50 MB से छोटा रखें।');const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');const path=(isVideo?'home-videos/':'')+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'-'+safe;const {error}=await sb.storage.from('product-images').upload(path,file,{upsert:false,contentType:file.type});if(error)throw error;return sb.storage.from('product-images').getPublicUrl(path).data.publicUrl}
+
+function setUploadProgress(prefix,percent,text,detail){
+  const box=$(prefix+'Progress');
+  if(!box)return;
+  box.classList.remove('hide');
+  $(prefix+'ProgressText').textContent=text;
+  $(prefix+'ProgressFill').style.width=percent+'%';
+  $(prefix+'ProgressDetail').textContent=detail||'';
+}
+function hideUploadProgress(prefix){
+  const box=$(prefix+'Progress');
+  if(box)box.classList.add('hide');
+}
+async function up(file,prefix){
+  if(!file)throw new Error('पहले फ़ाइल चुनें।');
+  const isVideo=file.type.startsWith('video/'),isImage=file.type.startsWith('image/');
+  if(!isVideo&&!isImage)throw new Error('केवल image या video फ़ाइल चुनें।');
+  if(isImage&&file.size>10*1024*1024)throw new Error('फोटो 10 MB से छोटी रखें।');
+  if(isVideo&&file.size>50*1024*1024)throw new Error('वीडियो 50 MB से छोटा रखें।');
+  const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+  if(sessionError)throw sessionError;
+  const token=sessionData.session&&sessionData.session.access_token;
+  if(!token)throw new Error('Login की अवधि समाप्त हो गई। दोबारा Login करें।');
+  const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path=(isVideo?'home-videos/':'')+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'-'+safe;
+  const bucket='product-images';
+  const base=C.SUPABASE_URL.replace(/\/$/,'');
+  const encodedPath=path.split('/').map(encodeURIComponent).join('/');
+  const url=base+'/storage/v1/object/'+bucket+'/'+encodedPath;
+  setUploadProgress(prefix,0,'अपलोड शुरू हो रहा है…','0% पूरा');
+  await new Promise((resolve,reject)=>{
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST',url,true);
+    xhr.setRequestHeader('apikey',C.SUPABASE_ANON_KEY);
+    xhr.setRequestHeader('Authorization','Bearer '+token);
+    xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
+    xhr.setRequestHeader('x-upsert','false');
+    xhr.upload.onprogress=event=>{
+      if(event.lengthComputable){
+        const percent=Math.min(99,Math.round(event.loaded/event.total*100));
+        const loadedMB=(event.loaded/1024/1024).toFixed(1);
+        const totalMB=(event.total/1024/1024).toFixed(1);
+        setUploadProgress(prefix,percent,'फ़ाइल अपलोड हो रही है… '+percent+'%',loadedMB+' MB / '+totalMB+' MB');
+      }else{
+        setUploadProgress(prefix,0,'फ़ाइल अपलोड हो रही है…','प्रगति की गणना हो रही है');
+      }
+    };
+    xhr.onload=()=>{
+      if(xhr.status>=200&&xhr.status<300){
+        setUploadProgress(prefix,100,'फ़ाइल अपलोड पूरी हुई ✅','अब Content सेव हो रहा है…');
+        resolve();
+      }else{
+        let message='फ़ाइल अपलोड नहीं हुई।';
+        try{const response=JSON.parse(xhr.responseText);message=response.message||response.error||message}catch(_){}
+        reject(new Error(message+' (HTTP '+xhr.status+')'));
+      }
+    };
+    xhr.onerror=()=>reject(new Error('नेटवर्क समस्या। इंटरनेट जाँचकर फिर कोशिश करें।'));
+    xhr.onabort=()=>reject(new Error('अपलोड रद्द हो गया।'));
+    xhr.send(file);
+  });
+  return sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+}
+
 async function loadP(){const {data,error}=await sb.from('products').select('*').order('created_at');if(error)return msg('Products लोड नहीं हुए: '+error.message,true);prods=data||[];$('plist').innerHTML=prods.map(p=>`<div class="row">${p.image_url?`<img src="${esc(p.image_url)}" alt="">`:'<div class="ph">Photo</div>'}<div class="i"><b>${esc(p.name)}</b><small>${esc(p.category)} • ${p.status==='available'?'Available':'Coming Soon'}</small></div><button class="s" onclick="editP('${esc(p.id)}')">Edit</button><button class="d" onclick="delP('${esc(p.id)}')">Delete</button></div>`).join('')||'कोई product नहीं'}
-function resetP(){editId=null;editImg=null;['pn','ph','pd','pvideo','pf'].forEach(id=>$(id).value='');$('pc').value='Snacks';$('ps').value='available';$('ptitle').textContent='नया Product';$('photoNote').textContent='नया प्रोडक्ट जोड़ने के लिए फोटो जरूरी है।';$('saveBtn').textContent='Save';clearPacks();window.scrollTo({top:0,behavior:'smooth'})}
-function editP(id){const p=prods.find(x=>String(x.id)===String(id));if(!p)return msg('Product नहीं मिला।',true);editId=p.id;editImg=p.image_url||null;$('pn').value=p.name||'';$('ph').value=p.name_hi||'';$('pd').value=p.description||'';$('pvideo').value=p.video_url||'';$('pc').value=p.category||'Snacks';$('ps').value=p.status||'available';$('pf').value='';$('ptitle').textContent='Edit: '+(p.name||'Product');$('photoNote').textContent=editImg?'पुरानी फोटो बनी रहेगी। बदलने के लिए नई फोटो चुनें।':'इस प्रोडक्ट के लिए फोटो चुनें।';$('saveBtn').textContent='Update Product';$('packs').innerHTML='';packCounter=0;const packs=parsePacks(p.pack_options||p.packs);if(packs.length)packs.forEach(x=>addPack(x.grams??'',x.price??''));else addPack();tab(1);window.scrollTo({top:0,behavior:'smooth'})}
-async function saveP(){const b=$('saveBtn');try{if(!sb)throw new Error('Supabase कनेक्शन उपलब्ध नहीं।');const name=$('pn').value.trim();if(!name)throw new Error('Product का नाम जरूरी है।');const f=$('pf').files[0];if(!f&&!editImg)throw new Error('पहले Product की फोटो चुनें।');const packs=readPacks();if(!packs.length)throw new Error('कम से कम एक पैक और उसकी कीमत भरें।');const video=$('pvideo').value.trim();if(video){const u=new URL(video);if(!['http:','https:'].includes(u.protocol))throw new Error('Video URL सही नहीं है।')}b.disabled=true;b.textContent='Saving...';let img=editImg;if(f)img=await up(f);const row={name,name_hi:$('ph').value.trim()||null,category:$('pc').value,description:$('pd').value.trim()||null,video_url:video||null,pack_options:packs,status:$('ps').value,image_url:img};const result=editId?await sb.from('products').update(row).eq('id',editId):await sb.from('products').insert(row);if(result.error)throw result.error;msg('Product सेव हो गया ✅');resetP();await loadP()}catch(e){msg(e.message||'Product सेव नहीं हो पाया।',true)}finally{b.disabled=false;b.textContent=editId?'Update Product':'Save'}}
+function resetP(){editId=null;editImg=null;['pn','ph','pd','pvideo','pf'].forEach(id=>$(id).value='');$('pc').value='Snacks';$('ps').value='available';$('ptitle').textContent='नया Product';$('photoNote').textContent='नया प्रोडक्ट जोड़ने के लिए फोटो जरूरी है।';$('saveBtn').textContent='Save';clearPacks();hideUploadProgress('product');window.scrollTo({top:0,behavior:'smooth'})}
+function editP(id){const p=prods.find(x=>String(x.id)===String(id));if(!p)return msg('Product नहीं मिला।',true);editId=p.id;editImg=p.image_url||null;$('pn').value=p.name||'';$('ph').value=p.name_hi||'';$('pd').value=p.description||'';$('pvideo').value=p.video_url||'';$('pc').value=p.category||'Snacks';$('ps').value=p.status||'available';$('pf').value='';$('ptitle').textContent='Edit: '+(p.name||'Product');$('photoNote').textContent=editImg?'पुरानी फोटो बनी रहेगी। बदलने के लिए नई फोटो चुनें।':'इस प्रोडक्ट के लिए फोटो चुनें।';$('saveBtn').textContent='Update Product';$('packs').innerHTML='';packCounter=0;const packs=parsePacks(p.pack_options||p.packs);if(packs.length)packs.forEach(x=>addPack(x.grams??'',x.price??''));else addPack();hideUploadProgress('product');tab(1);window.scrollTo({top:0,behavior:'smooth'})}
+async function saveP(){
+  const b=$('saveBtn');
+  try{
+    if(!sb)throw new Error('Supabase कनेक्शन उपलब्ध नहीं।');
+    const name=$('pn').value.trim();
+    if(!name)throw new Error('Product का नाम जरूरी है।');
+    const f=$('pf').files[0];
+    if(!f&&!editImg)throw new Error('पहले Product की फोटो चुनें।');
+    const packs=readPacks();
+    if(!packs.length)throw new Error('कम से कम एक पैक और उसकी कीमत भरें।');
+    const video=$('pvideo').value.trim();
+    if(video){const u=new URL(video);if(!['http:','https:'].includes(u.protocol))throw new Error('Video URL सही नहीं है।')}
+    b.disabled=true;
+    b.textContent='Saving...';
+    let img=editImg;
+    if(f)img=await up(f,'product');
+    const row={name,name_hi:$('ph').value.trim()||null,category:$('pc').value,description:$('pd').value.trim()||null,video_url:video||null,pack_options:packs,status:$('ps').value,image_url:img};
+    const result=editId?await sb.from('products').update(row).eq('id',editId):await sb.from('products').insert(row);
+    if(result.error)throw result.error;
+    msg('Product सेव हो गया ✅');
+    resetP();
+    await loadP();
+  }catch(e){msg(e.message||'Product सेव नहीं हो पाया।',true)}
+  finally{b.disabled=false;b.textContent=editId?'Update Product':'Save';hideUploadProgress('product')}
+}
 async function delP(id){if(!confirm('क्या यह Product Delete करना है?'))return;const {error}=await sb.from('products').delete().eq('id',id);if(error)return msg(error.message,true);msg('Product Delete हो गया।');await loadP()}
-function homeTypeChanged(){const t=$('htype').value;const isLink=t==='link';$('homeFileWrap').classList.toggle('hide',isLink);$('homeLinkWrap').classList.toggle('hide',!isLink);$('homeFileLabel').textContent=t==='video'?'Video फ़ाइल चुनें':'Photo चुनें';$('hf').accept=t==='video'?'video/*':'image/*';$('hf').value=''}
-async function loadHomeContent(){const {data,error}=await sb.from('stories').select('*').order('created_at',{ascending:false});if(error){$('hlist').textContent='Content लोड नहीं हुआ: '+error.message;return}const rows=data||[];$('hlist').innerHTML=rows.map(s=>{const isV=!!s.video_url;const media=isV?`<div class="ph">VIDEO</div>`:(s.image_url?`<img src="${esc(s.cover_url||s.image_url)}" alt="">`:'<div class="ph">Content</div>');return `<div class="row">${media}<div class="i"><b>${esc(s.caption|| (isV?'Video':'Photo'))}</b><small>${isV?'Video':'Photo'} • ${s.expires_at?'समाप्ति: '+esc(new Date(s.expires_at).toLocaleString()):'Expiry नहीं सेट'}</small>${isV?`<small>${esc(s.video_url)}</small>`:''}</div><button class="d" onclick="delHomeContent('${esc(s.id)}')">Delete</button></div>`}).join('')||'अभी कोई content नहीं है।'}
-async function saveHomeContent(){const b=$('homeSaveBtn');try{if(!sb)throw new Error('Supabase कनेक्शन उपलब्ध नहीं।');const type=$('htype').value,caption=$('hcaption').value.trim()||null;let image_url=null,video_url=null;if(type==='photo'){const f=$('hf').files[0];if(!f)throw new Error('Photo चुनें।');if(!f.type.startsWith('image/'))throw new Error('कृपया image फ़ाइल चुनें।');image_url=await up(f)}else if(type==='video'){const f=$('hf').files[0];if(!f)throw new Error('Video चुनें।');if(!f.type.startsWith('video/'))throw new Error('कृपया video फ़ाइल चुनें।');video_url=await up(f)}else{const raw=$('hurl').value.trim();if(!raw)throw new Error('Video URL डालें।');let u;try{u=new URL(raw)}catch(_){throw new Error('Video URL सही नहीं है।')}if(!['http:','https:'].includes(u.protocol))throw new Error('केवल http/https लिंक स्वीकार है।');video_url=raw}b.disabled=true;b.textContent='Publishing...';const row={image_url,video_url,caption,expires_at:new Date(Date.now()+10*365*24*60*60*1000).toISOString()};const {error}=await sb.from('stories').insert(row);if(error)throw error;$('hf').value='';$('hurl').value='';$('hcaption').value='';msg('Content publish हो गया ✅');await loadHomeContent()}catch(e){msg(e.message||'Content publish नहीं हुआ।',true)}finally{b.disabled=false;b.textContent='Publish Content'}}
+function homeTypeChanged(){const t=$('htype').value;const isLink=t==='link';$('homeFileWrap').classList.toggle('hide',isLink);$('homeLinkWrap').classList.toggle('hide',!isLink);$('homeFileLabel').textContent=t==='video'?'Video फ़ाइल चुनें':'Photo चुनें';$('hf').accept=t==='video'?'video/*':'image/*';$('hf').value='';hideUploadProgress('home')}
+async function loadHomeContent(){const {data,error}=await sb.from('stories').select('*').order('created_at',{ascending:false});if(error){$('hlist').textContent='Content लोड नहीं हुआ: '+error.message;return}const rows=data||[];$('hlist').innerHTML=rows.map(s=>{const isV=!!s.video_url;const media=isV?`<div class="ph">VIDEO</div>`:(s.image_url?`<img src="${esc(s.cover_url||s.image_url)}" alt="">`:'<div class="ph">Content</div>');return `<div class="row">${media}<div class="i"><b>${esc(s.caption||(isV?'Video':'Photo'))}</b><small>${isV?'Video':'Photo'} • ${s.expires_at?'समाप्ति: '+esc(new Date(s.expires_at).toLocaleString()):'Expiry नहीं सेट'}</small>${isV?`<small>${esc(s.video_url)}</small>`:''}</div><button class="d" onclick="delHomeContent('${esc(s.id)}')">Delete</button></div>`}).join('')||'अभी कोई content नहीं है।'}
+async function saveHomeContent(){
+  const b=$('homeSaveBtn');
+  try{
+    if(!sb)throw new Error('Supabase कनेक्शन उपलब्ध नहीं।');
+    const type=$('htype').value,caption=$('hcaption').value.trim()||null;
+    let image_url=null,video_url=null;
+    b.disabled=true;
+    b.textContent='Uploading...';
+    if(type==='photo'){
+      const f=$('hf').files[0];
+      if(!f)throw new Error('Photo चुनें।');
+      if(!f.type.startsWith('image/'))throw new Error('कृपया image फ़ाइल चुनें।');
+      image_url=await up(f,'home');
+    }else if(type==='video'){
+      const f=$('hf').files[0];
+      if(!f)throw new Error('Video चुनें।');
+      if(!f.type.startsWith('video/'))throw new Error('कृपया video फ़ाइल चुनें।');
+      video_url=await up(f,'home');
+    }else{
+      const raw=$('hurl').value.trim();
+      if(!raw)throw new Error('Video URL डालें।');
+      let u;try{u=new URL(raw)}catch(_){throw new Error('Video URL सही नहीं है।')}
+      if(!['http:','https:'].includes(u.protocol))throw new Error('केवल http/https लिंक स्वीकार है।');
+      video_url=raw;
+    }
+    b.textContent='Publishing...';
+    const row={image_url,video_url,caption,expires_at:new Date(Date.now()+10*365*24*60*60*1000).toISOString()};
+    const {error}=await sb.from('stories').insert(row);
+    if(error)throw error;
+    $('hf').value='';$('hurl').value='';$('hcaption').value='';
+    msg('Content publish हो गया ✅');
+    await loadHomeContent();
+  }catch(e){msg(e.message||'Content publish नहीं हुआ।',true)}
+  finally{b.disabled=false;b.textContent='Publish Content';hideUploadProgress('home')}
+}
 async function delHomeContent(id){if(!confirm('क्या यह Home Content Delete करना है?'))return;const {error}=await sb.from('stories').delete().eq('id',id);if(error)return msg('Delete नहीं हुआ: '+error.message,true);msg('Content Delete हो गया।');await loadHomeContent()}
 clearPacks();homeTypeChanged();init();
 </script>
 </body>
-  </html>
+        </html>
